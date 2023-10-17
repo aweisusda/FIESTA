@@ -1,4 +1,5 @@
-check.titles <- function(dat=NULL, esttype, estseed="none", phototype=NULL, Npts=NULL,
+check.titles <- function(dat=NULL, esttype, estseed="none", 
+    woodland="Y", phototype=NULL, Npts=NULL, lbs2tons=TRUE, metric=FALSE,
 	ratiotype="PERACRE", tabtype="PCT", sumunits=FALSE, title.main=NULL,
 	title.pre=NULL, title.ref=NULL, title.rowvar=NULL, title.rowgrp=NULL,
 	title.colvar=NULL, title.unitvar=NULL, title.filter=NULL, title.unitsn=NULL,
@@ -8,6 +9,11 @@ check.titles <- function(dat=NULL, esttype, estseed="none", phototype=NULL, Npts
 	rawdata=FALSE, parameters=TRUE, states=NULL, invyrs=NULL, landarea=NULL,
 	pcfilter=NULL, allin1=FALSE, divideby=NULL, outfn=NULL, outfn.pre=NULL){
 
+  ## Define variables that are converted from pounds to tons
+  ref_units <- FIESTAutils::ref_units
+  vars2convert <- ref_units[ref_units$kg2tons == "Y", "VARIABLE"]
+  estvartw <- ref_units$VARIABLE[ref_units$WOODLAND == "Y"]
+  
   ## TITLE INFO FOR OUTPUT TABLES
   ########################################################
   if (!is.null(unitvar2) && unitvar2 == "NONE") unitvar2 <- NULL
@@ -30,6 +36,7 @@ check.titles <- function(dat=NULL, esttype, estseed="none", phototype=NULL, Npts
 	ifelse (landarea == "ALL", "allland",
 		ifelse (landarea == "TIMBERLAND", "timberland",
 			ifelse (landarea == "CHANGE", "change", ""))))
+			
   if (addtitle || returntitle) {
     if (!is.null(dat)) {
       title.unitvar.out <- NULL
@@ -47,6 +54,7 @@ check.titles <- function(dat=NULL, esttype, estseed="none", phototype=NULL, Npts
     ########################################################
     ## Reference title
     if (is.null(title.ref)) {
+      title.state <- NULL
       if (!is.null(states))
         title.state <- paste(as.character(states), collapse=" and ")
       if (!is.null(invyrs)) {
@@ -98,22 +106,27 @@ check.titles <- function(dat=NULL, esttype, estseed="none", phototype=NULL, Npts
         }
       } else if (esttype %in% c("TREE", "RATIO")) {
         #ref_estvar <- FIESTAutils::ref_estvar
-        if (is.null(title.unitsn)) {
-          title.unitsn <- unique(ref_estvar[ref_estvar$ESTVAR == estvarn, "ESTUNITS"])
-        }
-        if (length(title.unitsn) > 1) {
-          title.units <- title.unitsn[1]
+        if (is.null(title.unitsn)) {		
+		  unitcol <- ifelse (metric, "METRICUNITS", "UNITS")
+          title.unitsn <- ref_units[ref_units$VARIABLE == estvarn, unitcol]
+		  if (estvarn %in% vars2convert && lbs2tons) {
+            title.unitsn <- ifelse (metric, "metric tons", "tons")
+          }			
         }
         if (esttype == "RATIO") {
           if (is.null(title.unitsd)) {
-            title.unitsd <- unique(ref_estvar[ref_estvar$ESTVAR == estvard, "ESTUNITS"])
-          }
-          if (length(title.unitsd) > 1) {
-            title.unitsd <- title.unitsd[1]
+		    unitcol <- ifelse (metric, "METRICUNITS", "UNITS")
+            title.unitsd <- ref_units[ref_units$VARIABLE == estvarn, unitcol]
+		    if (estvard %in% vars2convert && lbs2tons) {
+              title.unitsd <- ifelse (metric, "metric tons", "tons")
+            }			
           }
         }
         if (is.null(title.estvarn)) {
           ref_estvarn <- ref_estvar[ref_estvar$ESTVAR == estvarn, ]
+		  if (estvarn %in% estvartw) {
+		    ref_estvarn <- ref_estvarn[ref_estvarn$WOODLAND == woodland, ]
+		  }
           if (nrow(ref_estvarn) == 0) {
             title.estvarn <- estvarn
           } else if (estseed %in% c("add", "only")) {
@@ -148,7 +161,7 @@ check.titles <- function(dat=NULL, esttype, estseed="none", phototype=NULL, Npts
                   gfind.max <- 1
                 }
               } else {
-                 gfind.max <- gfind.max[1]
+                gfind.max <- gfind.max[1]
               }
             } else {
               gfind.max <- 1
@@ -172,7 +185,6 @@ check.titles <- function(dat=NULL, esttype, estseed="none", phototype=NULL, Npts
           }
         }
         title.part1 <- title.estvarn
-
         if (esttype == "RATIO" && ratiotype == "PERTREE") {
           if (is.null(title.estvard)) {
             ref_estvard <- ref_estvar[ref_estvar$ESTVAR == estvarn, ]
