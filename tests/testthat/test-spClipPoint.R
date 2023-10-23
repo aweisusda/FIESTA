@@ -1,12 +1,14 @@
 
 test_that("Clip Point returns expected number of points", {
 
+  # Set up
   WYbhfn <- system.file("extdata",
                       "sp_data/WYbighorn_adminbnd.shp",
                       package = "FIESTA")
 
   WYbh <- spImportSpatial(WYbhfn)
 
+  # Test
   clipped_feature <- spClipPoint(xyplt = WYplt,
                                  uniqueid = "CN",
                                  clippolyv = WYbh,
