@@ -29,6 +29,7 @@ test_that("Extract Polygon Attributes works", {
   exp_names <- 23
   extracted_num <- length(names(ext_plts))
   expect_equal(extracted_num, exp_names)
+  expect_snapshot(ext_plts)
 
   # Test if plots have expected number of columns after extract
   # where keepNA = false, and polyvarlst applied (19->21)
@@ -43,5 +44,6 @@ test_that("Extract Polygon Attributes works", {
   exp_names2 <- 20
   extracted_num2 <- length(names(ext_plts2))
   expect_equal(extracted_num2, exp_names2)
+  expect_snapshot(ext_plts2)
 
 })
