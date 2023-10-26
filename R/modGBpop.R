@@ -352,11 +352,10 @@ modGBpop <- function(popType = "VOL",
   }
   
   ## Set user-supplied popFilters values
-  popFilter2 <- popFilters_defaults_list
   if (length(popFilter) > 0) {
     for (i in 1:length(popFilter)) {
       if (names(popFilter)[[i]] %in% names(popFilters_defaults_list)) {
-		popFilter2[[names(popFilter)[[i]]]] <- popFilter[[i]]
+        assign(names(popFilter)[[i]], popFilter[[i]])
       } else {
         stop(paste("Invalid parameter: ", names(popFilter)[[i]]))
       }
@@ -466,12 +465,10 @@ modGBpop <- function(popType = "VOL",
   saveobj <- pcheck.logical(saveobj, varnm="saveobj", 
 		title="Save SApopdat object?", first="YES", gui=gui, stopifnull=TRUE)
   
+ 
   ## Check output
   ########################################################
   if (savedata) {
-    if (out_fmt == "sqlite" && is.null(out_dsn)) {
-	  out_dsn <- "GBpopdat.db"
-	}
     outlst <- pcheck.output(outfolder=outfolder, out_dsn=out_dsn, 
                   out_fmt=out_fmt, outfn.pre=outfn.pre, outfn.date=outfn.date, 
                   overwrite_dsn=overwrite_dsn, overwrite_layer=overwrite_layer,
@@ -508,17 +505,17 @@ modGBpop <- function(popType = "VOL",
                   "CHNG", "GRM", "GROW", "MORT", "REMV")
   popType <- pcheck.varchar(var2check=popType, varnm="popType", gui=gui,
 		checklst=evalTyplst, caption="popType", multiple=FALSE, stopifnull=TRUE)
-  popevalid <- as.character(popFilter2$evalid)
-  if (!is.null(popevalid)) {
+  if (!is.null(evalid)) {
+    popevalid <- as.character(evalid)
     substr(popevalid, nchar(popevalid)-1, nchar(popevalid)) <- 
-		formatC(FIESTAutils::ref_popType[FIESTAutils::ref_popType$popType %in% popType, "EVAL_TYP_CD"], 
-		width=2, flag="0")
+		formatC(FIESTAutils::ref_popType[FIESTAutils::ref_popType$popType %in% popType, "EVAL_TYP_CD"], width=2, flag="0")
     #evalid <- as.character(evalid)
     #substr(evalid, nchar(evalid)-1, nchar(evalid)) <- "01"
   } 
   if (popType %in% c("GROW", "MORT", "REMV")) {
     popType <- "GRM"
   }
+ 
  
   ###################################################################################
   ## Load data
@@ -662,7 +659,7 @@ modGBpop <- function(popType = "VOL",
       popTabIDs[[nm]] <- popTableIDs_defaults_list[[nm]]
     }
   }
-
+ 
   ###################################################################################
   ## CHECK PLOT PARAMETERS AND DATA
   ## Generate table of sampled/nonsampled plots and conditions
@@ -671,11 +668,13 @@ modGBpop <- function(popType = "VOL",
   ###################################################################################
   pltcheck <- check.popdataPLT(dsn=dsn, tabs=popTabs, tabIDs=popTabIDs, 
       pltassgn=pltassgn, pltassgnid=pltassgnid, pjoinid=pjoinid, 
-      module="GB", popType=popType, popevalid=popevalid, adj=adj, 
-	  popFilter=popFilter2, nonsamp.pfilter=nonsamp.pfilter, 
-      unitarea=unitarea, areavar=areavar, unitvar=unitvar, 
-      unitvar2=unitvar2, areaunits=areaunits, unit.action=unit.action, 
-      strata=strata, stratalut=stratalut, strvar=strvar, pivot=pivot)
+      module="GB", popType=popType, popevalid=popevalid, adj=adj, ACI=ACI, 
+      evalid=evalid, measCur=measCur, measEndyr=measEndyr, 
+      measEndyr.filter=measEndyr.filter, invyrs=invyrs, intensity=intensity,
+      nonsamp.pfilter=nonsamp.pfilter, unitarea=unitarea, areavar=areavar, 
+      unitvar=unitvar, unitvar2=unitvar2, areaunits=areaunits, 
+      unit.action=unit.action, strata=strata, stratalut=stratalut, 
+      strvar=strvar, pivot=pivot)
   if (is.null(pltcheck)) return(NULL)
   pltassgnx <- pltcheck$pltassgnx
   pltassgnid <- pltcheck$pltassgnid
@@ -705,7 +704,7 @@ modGBpop <- function(popType = "VOL",
   if (ACI) {
     nfplotsampcnt <- pltcheck$nfplotsampcnt
   }
-
+ 
   if (popType %in% c("ALL", "CURR", "VOL")) {
     ###################################################################################
     ## Check parameters and data for popType AREA/VOL
@@ -1280,10 +1279,6 @@ modGBpop <- function(popType = "VOL",
 
   rm(popcheck)
   # gc()
-
-  if (!is.null(dbconn)) {
-    DBI::dbDisconnect(dbconn)
-  }
 
   if (returndata) {
     return(returnlst)

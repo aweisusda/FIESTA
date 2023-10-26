@@ -218,6 +218,7 @@ datSumTree <- function(tree = NULL,
 			"VARIABLE"]
   woodlandvars <- FIESTAutils::ref_units[FIESTAutils::ref_units$WOODLAND == "Y", 
 			"VARIABLE"]
+  
 
   growvars <- c("TPAGROW_UNADJ", "GROWCFGS", "GROWBFSL", "GROWCFAL", "FGROWCFGS", 
 	"FGROWBFSL", "FGROWCFAL")
@@ -480,19 +481,18 @@ datSumTree <- function(tree = NULL,
   }
   
   selectvars <- tsumuniqueid
-  tfilter <- RtoSQL(tfilter, x=treenames)
   if (!is.null(tfilter)) {
     if (!seedonly) {
 	  if (is.null(twhereqry)) {
-        twhereqry <- paste("WHERE", tfilter)
+        twhereqry <- paste("WHERE", RtoSQL(tfilter, x=treenames))
 	  } else {
-        twhereqry <- paste(twhereqry, "AND", tfilter)
+        twhereqry <- paste(twhereqry, "AND", RtoSQL(tfilter, x=treenames))
       }	  
     }
     if (addseed || seedonly) {
       sfilter <- check.logic(seednames, statement=tfilter, stopifinvalid=FALSE)
       if (!is.null(sfilter)) {
-        swhereqry <- paste("WHERE", tfilter)
+        swhereqry <- paste("WHERE", RtoSQL(tfilter))
       }
     }
 	if (woodland %in% c("N", "only")) {
@@ -527,7 +527,7 @@ datSumTree <- function(tree = NULL,
 #      warning("tsumvarlst does not have any variables that include woodland...")
 #    }
   } 
-
+  
   ## check seed table
   if (seedonly || addseed) {
     if (!any(tsumvarlst %in% c("TPA_UNADJ", "PLT_CN"))) {
@@ -581,6 +581,7 @@ datSumTree <- function(tree = NULL,
     }
   }
 
+
   ## CHECK getadjplot and adjtree
   ###########################################################  
   getadjplot <- pcheck.logical(getadjplot, varnm="getadjplot", 
@@ -597,13 +598,11 @@ datSumTree <- function(tree = NULL,
   }
 
   if (adjtree && !getadjplot) {
-    if (!seedonly) {
-      if (!adjvar %in% treenames) {
-        message(adjvar, " variable not in tree table... setting getadjplot=TRUE")
-        getadjplot <- TRUE
-      } else {
-        tselectvars <- unique(c(tselectvars, adjvar))
-      }
+    if (!adjvar %in% treenames) {
+      message(adjvar, " variable not in tree table... setting getadjplot=TRUE")
+      getadjplot <- TRUE
+    } else {
+      tselectvars <- unique(c(tselectvars, adjvar))
     }
     if (addseed || seedonly) {
       if (!adjvar %in% seednames) {
@@ -614,6 +613,7 @@ datSumTree <- function(tree = NULL,
       }
     }
   }
+
 
   ########################################################################
   ########################################################################
@@ -626,16 +626,8 @@ datSumTree <- function(tree = NULL,
     if (!is.null(twhereqry)) {
       tree.qry <- paste(tree.qry, "\n", twhereqry)
     }
-    treex <- tryCatch(setDT(sqldf::sqldf(tree.qry, dbname=dbname)),
-			  	  error=function(e) {
-				  warning(e)
-  			      return(NULL)}
-                  )
-	if (nrow(treex) == 0) {
-	  message("no trees found")
-	  message(tree.qry)
-	  return(NULL)
-	}
+    #message(tree.qry)
+    treex <- setDT(sqldf::sqldf(tree.qry, dbname=dbname))
     setkeyv(treex, tsumuniqueid)
   }
 
@@ -645,21 +637,11 @@ datSumTree <- function(tree = NULL,
     if (!is.null(swhereqry)) {
       seed.qry <- paste(seed.qry, "\n", swhereqry)
     }
-    seedx <- tryCatch(setDT(sqldf::sqldf(seed.qry, dbname=dbname)),
-				  error=function(e) {
-				  warning(e)
-  			      return(NULL)}
-                  )
-    if (nrow(seedx) == 0) {
-	  message("no seedlings found")
-	  message(seed.qry)
-	  if (addseed) addseed <- FALSE
-	  if (seedonly) {
-	    return(NULL)
-	  }
-	}
+    #message(seed.qry)
+    seedx <- setDT(sqldf::sqldf(seed.qry, dbname=dbname))
     setkeyv(seedx, tsumuniqueid)
   }
+
 
   ## Check cond and plot tables
   ########################################################################
@@ -688,7 +670,8 @@ datSumTree <- function(tree = NULL,
       subpnames <- names(subplotx)
     }
   }
- 
+
+
   ## Check if have correct data for adjusting plots
   ##########################################################################
   if (getadjplot) {
@@ -740,7 +723,7 @@ datSumTree <- function(tree = NULL,
       treex <- check.matchval(treex, condx, tjoinid, cjoinid,
 		  tab1txt="tree", tab2txt="cond")
     }
-
+	
     if (addseed || seedonly) {
       ## Check if class of tuniqueid matches class of cuniqueid
       tabs <- check.matchclass(seedx, condx, tjoinid, cjoinid)
@@ -863,6 +846,7 @@ datSumTree <- function(tree = NULL,
       }
     }
   }
+
 
   ## Check for NA values in necessary variables in all tables
   ###########################################################################
@@ -1019,6 +1003,7 @@ datSumTree <- function(tree = NULL,
   ### DO WORK
   ################################################################################ 
   ################################################################################  
+
   if (getadjplot) {
 
     if (bysubp) {

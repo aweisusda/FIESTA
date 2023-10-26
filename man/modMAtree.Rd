@@ -25,7 +25,6 @@ modMAtree(
   title_opts = NULL,
   savedata_opts = NULL,
   gui = FALSE,
-  modelselect_bydomain = FALSE,
   ...
 )
 }
@@ -68,9 +67,7 @@ an input data frame (i.e., plt, cond, tree).}
 \item{prednames}{String vector. Name(s) of predictor variables to include in
 model.}
 
-\item{modelselect}{Logical. If TRUE, an elastic net regression model is fit 
-to the entire plot level data, and the variables selected in that model are 
-used for the proceeding estimation.}
+\item{modelselect}{Logical. If TRUE, variable selection occurs.}
 
 \item{FIA}{Logical. If TRUE, the finite population term is removed from
 estimator to match FIA estimates.}
@@ -93,10 +90,6 @@ options.}
 of options. Only used when savedata = TRUE.}
 
 \item{gui}{Logical. If gui, user is prompted for parameters.}
-
-\item{modelselect_bydomain}{Logical. If TRUE, modelselection will occur at 
-the domain level as specified by rowvar and/or colvar and not at the level of
-the entire sample.}
 
 \item{...}{Parameters for modMApop() if MApopdat is NULL.}
 }
