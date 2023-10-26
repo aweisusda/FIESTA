@@ -4,7 +4,8 @@ check.tree <- function(gui, treef, seedf=NULL, estseed="none", condf=NULL,
 	estvarn=NULL, estvarn.TPA=TRUE, estvarn.filter=NULL, estvarn.name=NULL,
 	esttotn=TRUE, estvard=NULL, estvard.TPA=TRUE, estvard.filter=NULL,
 	estvard.name=NULL, esttotd=TRUE, tdomvar=NULL, tdomvar2=NULL,
-	adjtree=FALSE, adjvar="tadjfac", adjtpa=FALSE, metric=FALSE, ACI=FALSE) {
+	adjtree=FALSE, adjvar="tadjfac", adjtpa=FALSE, metric=FALSE, 
+	ACI=FALSE, woodland="Y") {
 
   ###################################################################################
   ### GETS ESTIMATION DATA FROM TREE TABLE
@@ -38,7 +39,7 @@ check.tree <- function(gui, treef, seedf=NULL, estseed="none", condf=NULL,
   }
   ## GET NAME FOR ESTIMATION VARIABLE FOR ALL TREE DOMAINS
   if (!is.null(estvarn.name) && !is.character(estvarn.name)) {
-     stop("invalid estvarn.name.. must be a string")
+    stop("invalid estvarn.name.. must be a string")
   }
 
   ## TO INCREASE TREES PER ACRE IF ONLY USING 1 SUBPLOT
@@ -79,10 +80,10 @@ check.tree <- function(gui, treef, seedf=NULL, estseed="none", condf=NULL,
     tdomdata <- datSumTreeDom(tree=treef, seed=seedf, cond=condf, plt=plt, 
            tuniqueid=tuniqueid, cuniqueid=cuniqueid, puniqueid=puniqueid, 
            bycond=bycond, condid=condid, tsumvar=estvarn, TPA=estvarn.TPA, 
-           tdomtot=esttotn, tdomtotnm=estvarn.name, tfilter=estvarn.filter, 
-		tdomvar=tdomvar, tdomvar2=tdomvar2, adjtree=adjtree,
-		adjvar=adjvar, adjTPA=adjTPA, checkNA=FALSE, pivot=pivot, metric=metric,
-           addseed=addseed, seedonly=seedonly))
+           tdomtot=esttotn, tdomtotnm=estvarn.name, tfilter=estvarn.filter,
+           tdomvar=tdomvar, tdomvar2=tdomvar2, adjtree=adjtree,
+           adjvar=adjvar, adjTPA=adjTPA, pivot=pivot, metric=metric,
+           addseed=addseed, seedonly=seedonly, woodland=woodland))
     if (is.null(tdomdata)) return(NULL)
     tdomdat <- tdomdata$tdomdat
     if (!pivot) {
@@ -93,15 +94,14 @@ check.tree <- function(gui, treef, seedf=NULL, estseed="none", condf=NULL,
     estunitsn <- tdomdata$estunits
 
   } else {
- 
     suppressWarnings(
     treedata <- datSumTree(tree=treef, seed=seedf, cond=condf, plt=plt, 
            tuniqueid=tuniqueid, cuniqueid=cuniqueid, puniqueid=puniqueid, 
            bycond=bycond, condid=condid,
- 		tsumvarlst=estvarn, tsumvarnmlst=estvarn.name, TPA=estvarn.TPA,
-		tfilter=estvarn.filter, adjtree=adjtree, 
-           adjvar=adjvar, adjTPA=adjTPA, checkNA=FALSE,
- 		metric=metric, addseed=addseed, seedonly=seedonly))
+           tsumvarlst=estvarn, tsumvarnmlst=estvarn.name, TPA=estvarn.TPA,
+           tfilter=estvarn.filter, adjtree=adjtree, 
+           adjvar=adjvar, adjTPA=adjTPA,
+           metric=metric, addseed=addseed, seedonly=seedonly, woodland=woodland))
     if (is.null(treedata)) return(NULL)
     tdomdat <- treedata$treedat
     tdomvarn <- treedata$sumvars
@@ -141,11 +141,11 @@ check.tree <- function(gui, treef, seedf=NULL, estseed="none", condf=NULL,
       tdomdata <- datSumTreeDom(tree=treef, seed=seedf, cond=condf, plt=plt, 
            tuniqueid=tuniqueid, cuniqueid=cuniqueid, puniqueid=puniqueid, 
            bycond=bycond, condid=condid,
-		tsumvar=estvarn, TPA=estvarn.TPA, tdomtot=esttotn, tdomtotnm=estvarn.name,
-		tfilter=estvarn.filter, tdomvar=tdomvar, tdomvar2=tdomvar2, 
+           tsumvar=estvarn, TPA=estvarn.TPA, tdomtot=esttotn, tdomtotnm=estvarn.name,
+           tfilter=estvarn.filter, tdomvar=tdomvar, tdomvar2=tdomvar2, 
            adjtree=adjtree, adjvar=adjvar, adjTPA=adjTPA, 
-           checkNA=FALSE, pivot=pivot, metric=metric,
-           addseed=addseed, seedonly=seedonly))
+           pivot=pivot, metric=metric,
+           addseed=addseed, seedonly=seedonly, woodland=woodland))
       if (is.null(tdomdata)) {
         message("invalid denominator... returning null")
         return(NULL)
@@ -175,10 +175,10 @@ check.tree <- function(gui, treef, seedf=NULL, estseed="none", condf=NULL,
       treedata <- datSumTree(tree=treef, seed=seedf, cond=condf, plt=plt, 
            tuniqueid=tuniqueid, cuniqueid=cuniqueid, puniqueid=puniqueid, 
            bycond=bycond, condid=condid,
- 		tsumvarlst=estvard, tsumvarnmlst=estvard.name, TPA=estvard.TPA,
-		tfilter=estvard.filter, adjtree=adjtree, adjTPA=adjTPA, 
-           checkNA=FALSE, metric=metric,
-           addseed=addseed, seedonly=seedonly))
+           tsumvarlst=estvard, tsumvarnmlst=estvard.name, TPA=estvard.TPA,
+           tfilter=estvard.filter, adjtree=adjtree, adjTPA=adjTPA, 
+           metric=metric,
+           addseed=addseed, seedonly=seedonly, woodland=woodland))
       if (is.null(treedata)) return(NULL)
       tdomdatd <- treedata$treedat
       tdomvard <- treedata$sumvars
