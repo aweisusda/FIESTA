@@ -15,7 +15,6 @@
 #' @param dropNAxvar Logical. If TRUE, removes columns that are NA.
 #' @param dropNAyvar Logical. If TRUE, removes rows that have NA values.
 #' @param pvar.round Integer. Number to round pvar values to.
-#' @param returnDT Logical. If TRUE, returns a datatable.
 #' @param savedata Logical. If TRUE, writes output data to outfolder.
 #' @param savedata_opts List. See help(savedata_options()) for a list
 #' of options. Only used when savedata = TRUE.  If out_layer = NULL, 
@@ -52,7 +51,6 @@ datPivot <- function(x,
                      dropNAxvar = TRUE, 
                      dropNAyvar = TRUE, 
                      pvar.round = 6,
-					 returnDT = FALSE,
 					 savedata = FALSE, 
                      savedata_opts = NULL, 
                      gui = FALSE){
@@ -225,10 +223,6 @@ datPivot <- function(x,
                               append_layer=append_layer,
                               add_layer=TRUE))
   }
-  
-  if (returnDT) {
-    return(data.table(ptab))
-  } else {	
-    return(data.frame(ptab))
-  }
+    
+  return(data.table(ptab))
 }

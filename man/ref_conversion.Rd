@@ -3,9 +3,9 @@
 \docType{data}
 \name{ref_conversion}
 \alias{ref_conversion}
-\title{Reference table - for conversion factors.}
+\title{Reference table - for generating tables.}
 \format{
-An object of class \code{data.frame} with 7 rows and 6 columns.
+An object of class \code{data.frame} with 7 rows and 4 columns.
 }
 \source{
 Conversion table.
@@ -14,6 +14,6 @@ Conversion table.
 ref_conversion
 }
 \description{
-Reference table - for conversion factors.
+Reference table - for generating tables.
 }
 \keyword{datasets}

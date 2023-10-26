@@ -229,7 +229,6 @@ spGetAuxiliary <- function(xyplt = NULL,
 
   ## Set global variables
   value=count=ACRES=TOTPIXELCNT=rast.lutfn=predfac=aspfn=prednames.cat=AOI <- NULL
-  badrast <- {}
   
   ##################################################################
   ## CHECK PARAMETER NAMES
@@ -607,7 +606,6 @@ spGetAuxiliary <- function(xyplt = NULL,
   ###############################################################################
   ## 3) Continuous raster layers - Extract values and get zonal statistics
   ###############################################################################
-  preds <- {}
   if (!is.null(rastlst.cont)) {
  
     if (extract) {
@@ -681,6 +679,8 @@ spGetAuxiliary <- function(xyplt = NULL,
     #zonalDT.cont.names <- {}
     message(paste("extracting zonal statistics...")) 
 
+    badrast <- {}
+    preds <- {}
     for (i in 1:length(rastlst.contfn)) {
       rastfn <- rastlst.contfn[i]
       if (inherits(rastfn, "list")) {
@@ -814,10 +814,10 @@ spGetAuxiliary <- function(xyplt = NULL,
       inputdf.cat <- extdat.rast.cat$inputdf
       prednames <- c(prednames, prednames.cat)
       predfac <- c(predfac, prednames.cat)
-      #inputdf <- rbind(inputdf, inputdf.cat)
+      inputdf <- rbind(inputdf, inputdf.cat)
       rm(extdat.rast.cat)
       # gc() 
- 
+
       if (NAto0) {
         for (col in prednames.cat) set(sppltx, which(is.na(sppltx[[col]])), col, 0)
       }
