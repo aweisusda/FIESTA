@@ -1,6 +1,5 @@
 check.popdataPLT <- function(dsn, tabs, tabIDs, pltassgn, pltassgnid, 
-	pjoinid, module, popType, popevalid, adj, ACI=FALSE, 
-	evalid, measCur, measEndyr, measEndyr.filter, invyrs, intensity, 
+	pjoinid, module, popType, popevalid, adj, popFilter, 
 	nonsamp.pfilter=NULL, unitarea=NULL, areavar, unitvar, unitvar2=NULL, 
 	areaunits, unit.action="keep", removetext="unitarea", strata=FALSE, 
 	stratalut=NULL, strvar=NULL, stratcombine=TRUE, pivot=FALSE, nonresp=FALSE, 
@@ -42,7 +41,7 @@ check.popdataPLT <- function(dsn, tabs, tabIDs, pltassgn, pltassgnid,
   STATECD=PLOT_STATUS_CD=PSTATUSCD=plotsampcnt=nfplotsampcnt=INVYR=
 	NF_PLOT_STATUS_CD=NF_COND_STATUS_CD=TPA_UNADJ=methodlst=nonresplut=
 	plotqry=pfromqry=pltassgnqry=unitareaqry=stratalutqry=whereqry=palias=
-	P2POINTCNT=plt <- NULL
+	P2POINTCNT=plt=dbconn_pltassgn <- NULL
 
 
   ###################################################################################
@@ -85,11 +84,10 @@ check.popdataPLT <- function(dsn, tabs, tabIDs, pltassgn, pltassgnid,
 
   ## Check ACI (if ACI=FALSE, need to filter COND_STATUS_CD == 1)
   ###################################################################################
-  ACI <- pcheck.logical(ACI, varnm="ACI", title="ACI?", first="NO", gui=gui)
+  ACI <- pcheck.logical(popFilter$ACI, varnm="ACI", title="ACI?", first="NO", gui=gui)
   if (ACI) {
     pvars2keep <- c(pvars2keep, "NF_SAMPLING_STATUS_CD", "NF_PLOT_STATUS_CD")
   }
-
 
   ## Check unit.action
   ########################################################
@@ -108,8 +106,6 @@ check.popdataPLT <- function(dsn, tabs, tabIDs, pltassgn, pltassgnid,
   } else if (popType == "INV") {
     pvars2keep <- c(pvars2keep, "INVASIVE_SAMPLING_STATUS_CD", "INVASIVE_SPECIMEN_RULE_CD")
   }  
-
-
 
   ## Check strata, strvars
   ###################################################################################
@@ -159,72 +155,90 @@ check.popdataPLT <- function(dsn, tabs, tabIDs, pltassgn, pltassgnid,
   ###################################################################################
   ## Database queries
   ###################################################################################
+  evalid <- popFilter$evalid
+  invyrs <- popFilter$invyrs
   if (!is.null(dsn) && getext(dsn) %in% c("sqlite", "db", "db3", "sqlite3", "gpkg")) {
     datindb <- TRUE
     dbconn <- DBtestSQLite(dsn, dbconnopen=TRUE, showlist=FALSE)
     tablst <- DBI::dbListTables(dbconn)
     ppsanm=pltassgnqry <- NULL
- 
-    ## Filter for population data
-    if (!is.null(evalid) && !is.data.frame(pltassgn)) {
-      ppsanm <- chkdbtab(tablst, pltassgn, stopifnull=TRUE)
-      ppsaflds <- DBI::dbListFields(dbconn, ppsanm)
-      if (!pltassgnid %in% DBI::dbListFields(dbconn, ppsanm)) {
-        stop("pltassgnid is invalid")
-      }
-      evalidnm <- chkdbtab(ppsaflds, "EVALID", stopifnull=FALSE)
-      evalidvals <- DBI::dbGetQuery(dbconn, 
-			paste("select distinct", evalidnm, "from", ppsanm))[[1]]
-      evalidmiss <- evalid[!evalid %in% evalidvals]
-      if (any(!evalid %in% evalidvals)) {
-        stop("evalids are missing: ", toString(evalid[!evalid %in% evalidvals]))
-      } 
-      if (!pltassgnid %in% DBI::dbListFields(dbconn, ppsanm)) {
-        stop("pltassgnid is invalid")
-      }
-
-      if (is.null(plt)) {
-        palias <- "ppsa"
-        pfromqry <- paste(ppsanm, "ppsa")
-        pjoinid <- pltassgnid
+	
+	## Check name of plt
+	if (!is.null(plt)) {
+	  if (plt == "plot" && "plt" %in% tablst) {
+		plt <- "plt"
+	  } else if (plt == "plt" && "plot" %in% tablst) {
+		plt <- "plot"
+	  }
+	}
+	evalid <- popFilter$evalid
+	invyrs <- popFilter$invyrs
+	if (!is.null(evalid)) {	
+      ## Filter for population data
+	  if (is.data.frame(pltassgn)) {
+        evalidnm <- findnm("EVALID", names(pltassgn), returnNULL = TRUE)
+        if (!is.null(evalidnm)) {
+          whereqry <- paste0("where ", evalidnm, " in(", toString(evalid), ")")
+          popwhereqry <- paste0("where ", evalidnm, " in(", toString(popevalid), ")")
+          pltassgnqry <- paste("select distinct * from pltassgn", popwhereqry)
+        } else {
+	      pltassgnqry <- "select distinct * from pltassgn"
+	    }
+	
       } else {
-        palias <- "p"
-        pfromqry <- suppressMessages(getpfromqry(popevalid, dsn=dsn, 
-				ppsanm=ppsanm, ppsaid=pltassgnid, pjoinid=pjoinid))
-      }
-      whereqry <- paste0("where evalid in(", toString(evalid), ")")
-      popwhereqry <- paste0("where evalid in(", toString(popevalid), ")")
-      pltassgnqry <- paste("select distinct ppsa.* from", pfromqry, popwhereqry)
-    } else if (!is.null(evalid) && is.data.frame(pltassgn)) {
-      evalidnm <- chkdbtab(names(pltassgn), "EVALID", stopifnull=FALSE)
-      if (!is.null(evalidnm)) {
-        whereqry <- paste0("where ", evalidnm, " in(", toString(evalid), ")")
-        popwhereqry <- paste0("where ", evalidnm, " in(", toString(popevalid), ")")
-        pltassgnqry <- paste("select distinct * from pltassgn", popwhereqry)
-      }
-    } else if (measCur) {
+	    dbconn_pltassgn <- dbconn
+        ppsanm <- chkdbtab(tablst, pltassgn, stopifnull=TRUE)
+        ppsaflds <- DBI::dbListFields(dbconn, ppsanm)
+        if (!pltassgnid %in% DBI::dbListFields(dbconn, ppsanm)) {
+          stop("pltassgnid is invalid")
+        }
+        evalidnm <- chkdbtab(ppsaflds, "EVALID", stopifnull=FALSE)
+        evalidvals <- DBI::dbGetQuery(dbconn, 
+			paste("select distinct", evalidnm, "from", ppsanm))[[1]]
+        evalidmiss <- evalid[!evalid %in% evalidvals]
+        if (any(!evalid %in% evalidvals)) {
+          stop("evalids are missing: ", toString(evalid[!evalid %in% evalidvals]))
+        } 
+        if (!pltassgnid %in% DBI::dbListFields(dbconn, ppsanm)) {
+          stop("pltassgnid is invalid")
+        }
+
+        if (is.null(plt)) {
+          palias <- "ppsa"
+          pfromqry <- paste(ppsanm, "ppsa")
+          pjoinid <- pltassgnid
+        } else {
+          palias <- "p"
+          pfromqry <- getpfromqry(popevalid, dsn=dsn, ppsanm=ppsanm, 
+				ppsaid=pltassgnid, pjoinid=pjoinid, plotnm=plt, dbconn=dbconn)
+        }
+        whereqry <- paste0("where evalid in(", toString(evalid), ")")
+        popwhereqry <- paste0("where evalid in(", toString(popevalid), ")")
+        pltassgnqry <- paste("select distinct ppsa.* from", pfromqry, popwhereqry)
+	  }
+    } else if (popFilter$measCur) {
       palias <- "p"
-      pfromqry <- getpfromqry(varCur="MEASYEAR", Endyr=measEndyr, dsn=dsn,
-		plotnm=plt)
+      pfromqry <- getpfromqry(varCur="MEASYEAR", Endyr=popFilter$measEndyr, 
+		               dsn=dsn, plotnm=plt, dbconn=dbconn)
       pltassgnqry <- paste("select p.* from", pfromqry)
     } else if (!is.null(invyrs)) {
       palias <- "p"
-      pfromqry <- getpfromqry(invyrs=invyrs, dsn=dsn, plotnm=plt)
+      pfromqry <- getpfromqry(invyrs=invyrs, dsn=dsn, plotnm=plt, dbconn=dbconn)
       whereqry <- paste0("where invyrs in(", toString(invyrs), ")")
       pltassgnqry <- paste("select p.* from", pfromqry, whereqry)
     } else {
       whereqry <- NULL
       if (!is.null(ppsanm)) {
         palias <- "ppsa"
-        pfromqry <- paste0("plot p INNER JOIN ", ppsanm,
+        pfromqry <- paste0(plt, " p INNER JOIN ", ppsanm,
 			" ON(p.", pjoinid, " = ", ppsanm, ".", pltassgnid, ")")
       } else {
         palias <- "p"
         if (!is.null(plt) && is.character(plt) && plt %in% tablst) {
-          pfromqry <- "plot p"
+          pfromqry <- paste(plt, "p")
         } else {
           pfromqry <- NULL
-        }
+		}
       }
     }
  
@@ -249,22 +263,29 @@ check.popdataPLT <- function(dsn, tabs, tabIDs, pltassgn, pltassgnid,
     if (is.character(unitarea) && !is.null(chkdbtab(tablst, unitarea))) {
       unitindb <- TRUE
       unitarea_layer <- chkdbtab(tablst, unitarea)
+	  unitareaflds <- DBI::dbListFields(dbconn, unitarea_layer)
       unitareaqry <- paste("select * from", unitarea_layer)
-      if (!is.null(evalid)) {
-        unitareaqry <- paste(unitareaqry, "where evalid in(", toString(popevalid), ")")
+	  evalidnm <- findnm("EVALID", unitareaflds, returnNULL = TRUE) 
+      if (!is.null(evalid) && !is.null(evalidnm)) {
+        unitareaqry <- paste(unitareaqry, "where", evalidnm, "in(", toString(popevalid), ")")
       }
       unitarea <- pcheck.table(unitarea, tab_dsn=dsn, conn=dbconn,
            tabnm="unitarea", caption="unitarea?",
-		nullcheck=nullcheck, tabqry=unitareaqry, returnsf=FALSE)
-    }
- 
+		    nullcheck=nullcheck, tabqry=unitareaqry, returnsf=FALSE)
+    } 
+	
     if (strata && is.character(stratalut) && !is.null(chkdbtab(tablst, stratalut))) {
       stratindb <- TRUE
       stratalut_layer <- chkdbtab(tablst, stratalut)
+	  stratalutflds <- DBI::dbListFields(dbconn, stratalut_layer)
       stratalutqry <- paste("select * from", stratalut_layer)
-      if (!is.null(evalid)) {
-        stratalutqry <- paste(stratalutqry, "where evalid in(", toString(popevalid), ")")
+	  evalidnm <- findnm("EVALID", unitareaflds, returnNULL = TRUE) 
+      if (!is.null(evalid) && !is.null(evalidnm)) {
+        stratalutqry <- paste(stratalutqry, "where", evalidnm, "in(", toString(popevalid), ")")
       }
+	  stratalut <- pcheck.table(stratalut, tab_dsn=dsn, conn=dbconn,
+          tabnm="stratalut", caption="stratalut?",
+		  nullcheck=nullcheck, tabqry=stratalutqry, returnsf=FALSE)
     }
   }
  
@@ -272,11 +293,11 @@ check.popdataPLT <- function(dsn, tabs, tabIDs, pltassgn, pltassgnid,
   ## Import tables
   ###################################################################################
   pltx <- pcheck.table(plt, tab_dsn=dsn, conn=dbconn, 
-           tabnm="plt", caption="plot table?",
-		nullcheck=nullcheck, tabqry=plotqry, returnsf=FALSE)
-  pltassgnx <- pcheck.table(pltassgn, tab_dsn=dsn, conn=dbconn,
-           tabnm="pltassgn", caption="plot assignments?", 
-           nullcheck=nullcheck, tabqry=pltassgnqry, returnsf=FALSE)
+                       tabnm="plt", caption="plot table?",
+		               nullcheck=nullcheck, tabqry=plotqry, returnsf=FALSE)
+  pltassgnx <- pcheck.table(pltassgn, tab_dsn=dsn, conn=dbconn_pltassgn,
+                            tabnm="pltassgn", caption="plot assignments?", 
+                            nullcheck=nullcheck, tabqry=pltassgnqry, returnsf=FALSE)
 
   ###################################################################################
   ## Check and merge plt, pltassgn, cond
@@ -383,18 +404,9 @@ check.popdataPLT <- function(dsn, tabs, tabIDs, pltassgn, pltassgnid,
   ## Check filter(s) for population data
   ##################################################################################
   if (!datindb) {
-    if (!is.null(pltx) && (measCur || !is.null(measEndyr))) {
-
-      pltx <- getPlotCur(pltx, Endyr=measEndyr, varCur="MEASYEAR",
-				Endyr.filter=measEndyr.filter)
-      if (!is.null(intensity)) {
-        INTENSITYNM <- pcheck.varchar(var2check="INTENSITY",
-			checklst=names(pltx), warn="INTENSITY variable not in plt")
-        if (!all(intensity %in% unique(pltx[[INTENSITYNM]])))
-          stop("invalid intensity")
-        intensity.filter <- getfilter(INTENSITYNM, intensity)
-        pltx <- datFilter(pltx, intensity.filter)$xf
-      }
+    if (!is.null(pltx) && (popFilter$measCur || !is.null(popFilter$measEndyr))) {
+      pltx <- getPlotCur(pltx, Endyr=popFilter$measEndyr, varCur="MEASYEAR",
+				Endyr.filter=popFilter$measEndyr.filter)
     } else if (!is.null(invyrs)) {
       if (!"INVYR" %in% names(pltx)) stop("INVYR not in pltx")
       if (!all(invyrs %in% unique(pltx[["INVYR"]]))) {
@@ -403,27 +415,33 @@ check.popdataPLT <- function(dsn, tabs, tabIDs, pltassgn, pltassgnid,
         if (length(invyrs.miss) == length(invyrs)) stop("")
         invyrs <- invyrs[!invyrs %in% invyrs.miss]
       }
-      pltx <- datFilter(x=pltx, xfilter=paste("INVYR %in% c(", toString(invyrs), ")"))$xf
-
-      if (!is.null(intensity)) {
-        INTENSITYNM <- pcheck.varchar(var2check="INTENSITY",
-			checklst=names(pltx), warn="INTENSITY variable not in plt")
-        if (!all(intensity %in% unique(pltx[[INTENSITYNM]])))
-          stop("invalid intensity")
-        intensity.filter <- getfilter(INTENSITYNM, intensity)
-        pltx <- datFilter(pltx, intensity.filter)$xf
-      }
-    } else {
-      if (!is.null(intensity)) {
-        INTENSITYNM <- pcheck.varchar(var2check="INTENSITY",
-			checklst=names(pltx), warn="INTENSITY variable not in plt")
-        if (!all(intensity %in% unique(pltx[[INTENSITYNM]]))) {
-          stop("invalid intensity")
-        }
-        intensity.filter <- getfilter(INTENSITYNM, intensity)
-        pltx <- datFilter(pltx, intensity.filter)$xf
-      }
+      invyrs.filter <- getfilter(invyrsnm, invyrs)
+      pltx <- datFilter(pltx, invyrs.filter)$xf
     }
+  }	
+  
+  ## Subset popFilter - intensity
+  if (!is.null(popFilter$intensity)) {
+    intensitynm <- pcheck.varchar(var2check="INTENSITY",
+	       checklst=names(pltx), warn="INTENSITY variable not in plt")
+    intensitymiss <- intensity[!all(intensity %in% unique(pltx[[intensitynm]]))]
+    if (length(intensitymiss) > 0) {
+      stop("invalid intensity: ", toString(intensitymiss))
+    }
+    intensity.filter <- getfilter(intensitynm, intensity)
+    pltx <- datFilter(pltx, intensity.filter)$xf
+  }
+ 
+  ## Subset popFilter - invyrs (if additional to evalid)
+  if (!is.null(evalid) && !is.null(invyrs)) {
+    invyrsnm <- pcheck.varchar(var2check="INVYR",
+	       checklst=names(pltx), warn="INVYR variable not in plt")
+    invyrsmiss <- invyrs[!all(invyrs %in% unique(pltx[[invyrsnm]]))]
+    if (length(invyrsmiss) > 0) {
+      stop("invalid invyrs: ", toString(invyrsmiss))
+    }
+    invyrs.filter <- getfilter(invyrsnm, invyrs)
+    pltx <- datFilter(pltx, invyrs.filter)$xf
   }
 
   ######################################################################################
@@ -592,9 +610,8 @@ check.popdataPLT <- function(dsn, tabs, tabIDs, pltassgn, pltassgnid,
   ## Strata - Generate table of plots by strata, including nonsampled plots (P2POINTCNT)
   ######################################################################################
   if (strata) {
-    stratalut <- pcheck.table(stratalut, tab_dsn=dsn, tabnm="stratalut", conn=dbconn,
-		caption="stratalut table?", nullcheck=nullcheck, tabqry=stratalutqry,
-		returnsf=FALSE)
+    stratalut <- pcheck.table(stratalut, tabnm="stratalut", 
+		caption="stratalut table?", nullcheck=nullcheck, returnsf=FALSE)
     if (!stratindb && !is.null(evalid)) {
       ecol <- pcheck.varchar("EVALID", checklst=names(stratalut), stopifinvalid=FALSE)
       if (!is.null(ecol)) {

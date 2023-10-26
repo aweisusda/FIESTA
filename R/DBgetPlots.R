@@ -532,7 +532,7 @@ DBgetPlots <- function (states = NULL,
 	SITECLCD=RESERVCD=JENKINS_TOTAL_B1=JENKINS_TOTAL_B2=POP_PLOT_STRATUM_ASSGN=
 	NF_SAMPLING_STATUS_CD=NF_COND_STATUS_CD=ACI_NFS=OWNCD=OWNGRPCD=INVYR=
 	FORNONSAMP=PLOT_ID=sppvarsnew=STATECD=UNITCD=COUNTYCD=SEEDSUBP6=
-	PREV_PLT_CN=dbqueries=REF_SPECIES=PLOT=PLOTe=POP_PLOT_STRATUM_ASSGNe <- NULL
+	PREV_PLT_CN=dbqueries=REF_SPECIES=PLOT=PLOTe=POP_PLOT_STRATUM_ASSGNe=TRE_CN <- NULL
   plotnm=plotgeomnm=ppsanm=ppsanme=condnm=treenm=seednm=
      vsubpsppnm=vsubpstrnm=invsubpnm=
 	subplotnm=subpcondnm=sccmnm=grmnm=dwmnm=surveynm=evalidnm=
@@ -545,6 +545,18 @@ DBgetPlots <- function (states = NULL,
     switch(coordType,
       ACTUAL = c("LON_ACTUAL", "LAT_ACTUAL"),
       PUBLIC = c("LON_PUBLIC", "LAT_PUBLIC"))
+  }  
+  get_evalidtyp <- function(evalid, typcd) {
+    ## DESCRIPTION: gets an FIA evalid from list if exists 
+    if (any(evalid[endsWith(as.character(evalid), typcd)])) {
+	  return(evalid[endsWith(as.character(evalid), typcd)])
+    } else if (any(evalid[endsWith(as.character(evalid), "01")])) {
+      return(evalid[endsWith(as.character(evalid), "01")])
+    } else if (any(evalid[endsWith(as.character(evalid), "00")])) {
+      return(evalid[endsWith(as.character(evalid), "00")])
+    } else {
+      return(evalid[1])
+    }	 
   }  
  
   ##################################################################
@@ -667,7 +679,6 @@ DBgetPlots <- function (states = NULL,
     }
   }
 
-
   ## Define variables
   actual=getinvyr <- FALSE
   SCHEMA <- ""
@@ -729,46 +740,31 @@ DBgetPlots <- function (states = NULL,
   ## GETS DATA TABLES (OTHER THAN PLOT/CONDITION) IF NULL
   ###########################################################
   getType <- ifelse (is.null(evalid), TRUE, FALSE)
+  Typelst <- c("ALL", "CURR", "VOL", "P2VEG", "DWM", "INV", "CHNG", 
+	             "GROW", "MORT", "REMV", "GRM")
   if (gui) {
-    Typelst <- c("ALL", "CURR", "VOL", "P2VEG", "DWM", "INV", "GROW", "MORT", "REMV", "GRM")
     Type <- select.list(Typelst, title="eval type", 
 		preselect="VOL", multiple=TRUE)
     if (length(Type)==0) Type <- "VOL"
   } 
-  if (any(Type %in% c("VOL"))) {
-    if (!istree) {
-      message("eval Type includes 'VOL', but istree = FALSE... no trees included")
-    }
-  } 
-  if (any(Type == "P2VEG")) {
-    # understory vegetation tables 
-    # (P2VEG_SUBPLOT_SPP, P2VEG_SUBP_STRUCTURE)
-    isveg=issubp <- TRUE
-  } 
-  if (any(Type == "INV")) {
-    # understory vegetation tables 
-    # (INVASIVE_SUBPLOT_SPP)
-    isinv=issubp <- TRUE
-  } 
-  if (any(Type == "DWM")) {
-    # summarized condition-level down woody debris table (COND_DWM_CALC)
-    isdwm <- TRUE
+  Typemiss <- Type[!Type %in% Typelst]
+  if (length(Typemiss) > 0) {
+    stop("Type must be in following list: \n", toString(Typelst))
   }
-  if (any(Type == "CHNG")) {
-    # current and previous conditions, subplot-level - sccm (SUBP_COND_CHNG_MTRX) 
-    ischng=issubp <- TRUE
+  if (any(Type == "VOL") && !istree) {
+    message("eval Type includes 'VOL', but istree = FALSE... no trees included")
   }
-  if (any(Type %in% c("GROW", "MORT", "REMV"))) {
-    Type <- "GRM"
-  }
-  if (any(Type == "GRM")) {
-    ischng=issubp=isgrm <- TRUE
-  }
+  if (any(Type == "P2VEG")) isveg=issubp <- TRUE  # P2VEG_SUBPLOT_SPP, P2VEG_SUBP_STRUCTURE
+  if (any(Type == "INV")) isinv=issubp <- TRUE  # INVASIVE_SUBPLOT_SPP
+  if (any(Type == "CHNG")) ischng <- TRUE # SUBP_COND_CHNG_MTR
+  if (any(Type == "DWM")) isdwm <- TRUE  # COND_DWM_CALC
+  if (any(Type %in% c("GROW", "MORT", "REMV", "GRM"))) ischng=isgrm <- TRUE
+  
   if (isveg && invtype == "PERIODIC") {
     message("understory vegetation data only available for annual data\n")
     isveg <- FALSE
   }
-
+ 
   biojenk <- pcheck.logical(biojenk, varnm="biojenk", 
 		title="Jenkins biomass?", first="NO", gui=gui)
 
@@ -778,7 +774,7 @@ DBgetPlots <- function (states = NULL,
   if ((biojenk || greenwt) && !istree) {
     istree <- TRUE
   }
-
+ 
   ## Check coordType
   ####################################################################
   coordTypelst <- c("PUBLIC", "ACTUAL")
@@ -903,9 +899,11 @@ DBgetPlots <- function (states = NULL,
       iseval <- FALSE
     }
   }
+
   if (is.null(evalInfo)) stop("no data to return")
   states <- evalInfo$states
   evalidlist <- evalInfo$evalidlist
+  evalTypelist <- evalInfo$evalTypelist
   invtype <- evalInfo$invtype
   invyrtab <- evalInfo$invyrtab
   if (length(evalidlist) > 0) {
@@ -925,11 +923,6 @@ DBgetPlots <- function (states = NULL,
   } else if (!is.null(evalInfo$PLOT)) {
     PLOTe <- evalInfo$PLOT
     plotnm <- "PLOTe"
-  }
- 
-  if (!is.list(Type)) {
-    Typelist <- as.list(rep(Type, length(states)))
-    names(Typelist) <- states
   }
  
   ## Get state abbreviations and codes 
@@ -990,7 +983,7 @@ DBgetPlots <- function (states = NULL,
 
     subsetPOP <- TRUE
 
-    if (!is.null(subcycle99) && !subcycle99) {
+    if (!is.null(subcycle99) && subcycle99) {
       message("subcycle99 plots are not included in FIA evaluations") 
     } 
     subcycle99 <- FALSE
@@ -1122,8 +1115,8 @@ DBgetPlots <- function (states = NULL,
     warning("tree data object is too big.. writing to folder, no returned object")
     #savedata <- TRUE
     treeReturn <- FALSE
-  }
-
+  } 
+  
   ## Check outfolder, outfn.date, overwrite_dsn
   ###########################################################
   if (savedata | saveqry | parameters | !treeReturn | !returndata) {
@@ -1147,7 +1140,8 @@ DBgetPlots <- function (states = NULL,
   if (defaultVars) {
     istree2 <- ifelse(istree || !is.null(alltFilter), TRUE, FALSE)
     DBvars <- DBvars.default(istree=istree2, isseed=isseed, isveg=isveg, 
-		issubp=issubp, isdwm=isdwm, plotgeom=plotgeom, regionVars=regionVars)
+		issubp=issubp, isdwm=isdwm, isgrm=isgrm, plotgeom=plotgeom, 
+		regionVars=regionVars)
     for (nm in names(DBvars)) assign(nm, DBvars[[nm]])
     for (nm in names(filtervarlst)) assign(nm, filtervarlst[[nm]])
   } 
@@ -1260,7 +1254,7 @@ DBgetPlots <- function (states = NULL,
       }
     }
   }
-
+ 
   ###################################################################################
   ## Loop through states
   ###################################################################################
@@ -1292,6 +1286,10 @@ DBgetPlots <- function (states = NULL,
         assign(paste0("otherx", j), NULL)
       }
     } 
+
+	if (returndata) {
+	  dbqueries[[state]] <- list()
+	}
 
     ## Get PLOT/COND data 
     ###################################################
@@ -1417,7 +1415,7 @@ DBgetPlots <- function (states = NULL,
         }
       }
     }
-
+ 
     ###########################################################################
     ## From query
     ###########################################################################
@@ -1483,33 +1481,29 @@ DBgetPlots <- function (states = NULL,
     ## If FIA evaluation, get all plot from all evaluations.
     if (iseval) {
       evalid <- evalidlist[[state]]
-      Types <- Typelist[[state]]
+      Types <- evalTypelist[[state]]
       evalFilter <- paste0("ppsa.EVALID IN(", toString(evalid), ")")
 
       if ("P2VEG" %in% Type) {
-        evalid.veg <- evalid[endsWith(as.character(evalid), "10")]
-        if (length(evalid.veg) == 0) stop("must include evaluation ending in 10")
+	    evalid.veg <- get_evalidtyp(evalid, "10")
         evalFilter.veg <- paste("ppsa.EVALID =", evalid.veg)
       } else {
         evalFilter.veg <- evalFilter
       }
       if ("INV" %in% Type) {
-        evalid.inv <- evalid[endsWith(as.character(evalid), "09")]
-        if (length(evalid.inv) == 0) stop("must include evaluation ending in 09")
+	    evalid.inv <- get_evalidtyp(evalid, "10")
         evalFilter.inv <- paste("ppsa.EVALID =", evalid.inv)
       } else {
         evalFilter.inv <- evalFilter
       }
       if ("DWM" %in% Type) {
-        evalid.dwm <- evalid[endsWith(as.character(evalid), "07")]
-        if (length(evalid.dwm) == 0) stop("must include evaluation ending in 07")
+	  	evalid.dwm <- get_evalidtyp(evalid, "07")
         evalFilter.dwm <- paste("ppsa.EVALID =", evalid.dwm)
       } else {
         evalFilter.dwm <- evalFilter
       }
       if (any(c("GROW", "MORT", "REMV", "GRM") %in% Type)) {
-        evalid.grm <- evalid[endsWith(as.character(evalid), "03")]
-        if (length(evalid.grm) == 0) stop("must include evaluation ending in 03")
+	  	evalid.grm <- get_evalidtyp(evalid, "03")
         evalFilter.grm <- paste("ppsa.EVALID =", evalid.grm)
       } else {
         evalFilter.grm <- evalFilter
@@ -1694,7 +1688,9 @@ DBgetPlots <- function (states = NULL,
 		                     "\nfrom", pcfromqry, 
                              "\nwhere", xfilter)
       }
-      dbqueries$pltcond <- pltcond.qry
+	  if (!"pltcond" %in% names(dbqueries[[state]])) {
+        dbqueries[[state]]$pltcond <- pltcond.qry
+	  }
 
       ## Run pltcond query
       message(pltcond.qry)
@@ -1968,6 +1964,11 @@ DBgetPlots <- function (states = NULL,
 	                        "\nfrom", chgfromqry, 
 							"\nwhere", paste0(evalFilter.grm, stateFilters))
       pltcondu.qry <- paste(pltconduqrya, "\nUNION\n", pltconduqryb)
+	  
+	  if (!"pltcondu" %in% names(dbqueries[[state]])) {
+        dbqueries[[state]]$pltcondu <- pltcondu.qry
+	  }
+
 
       ## Run pltcondu query
       #####################################################################################
@@ -2239,8 +2240,129 @@ DBgetPlots <- function (states = NULL,
         rm(condux)
         # gc()   
       } 
+	  
+	  ##############################################################
+      ## Area Change Matrix (SUBP_COND_CHNG_MTRX)
+      ##############################################################
+      message("\n",
+        "## STATUS: Getting change data from SUBP_COND_CHNG_MTRX (", stabbr, ") ...", "\n")
+
+      ## ssmx data
+      ############################################
+      if (datsource == "sqlite") {
+        sccmnm <- chkdbtab(dbtablst, sccm_layer)
+        if (is.null(sccmnm)) {
+          message("there is no subp_cond_chng_mtrx table in database")
+          islulc=isgrm <- FALSE
+        } else {
+          ## Get SUBP_COND_CHNG_MTRX fields
+          sccmflds <- DBI::dbListFields(dbconn, sccmnm)
+        }
+      } else if (datsource == "datamart") {
+        SUBP_COND_CHNG_MTRX <- DBgetCSV("SUBP_COND_CHNG_MTRX", stabbr, 
+		      returnDT=TRUE, stopifnull=FALSE)
+        if (!is.null(SUBP_COND_CHNG_MTRX)) {
+          sccmnm <- "SUBP_COND_CHNG_MTRX"
+          sccmflds <- names(SUBP_COND_CHNG_MTRX)
+        }
+      } else if (datsource %in% c("csv", "obj")) {
+        SUBP_COND_CHNG_MTRX <- pcheck.table(sccm_layer, 
+					stopifnull=TRUE, stopifinvalid=TRUE)
+        if (!is.null(SUBP_COND_CHNG_MTRX)) {
+          sccmnm <- "SUBP_COND_CHNG_MTRX"
+          names(SUBP_COND_CHNG_MTRX) <- toupper(names(SUBP_COND_CHNG_MTRX))
+          sccmflds <- names(SUBP_COND_CHNG_MTRX)
+        }
+      }
+
+      if (is.null(sccmnm)) {
+        sccmx <- NULL
+        ischng=islulc <- FALSE
+
+      } else {
+        ## SUBP_COND_CHNG_MTRX table
+        sccmvarlst <- c("PLT_CN", "PREV_PLT_CN", "SUBP", "SUBPTYP",
+                         "CONDID", "PREVCOND", "SUBPTYP_PROP_CHNG")
+
+        ## Check variables in database
+        if (defaultVars) {
+          sccmvarlst <- sccmvarlst[sccmvarlst %in% sccmflds]
+          sccmvars <- toString(paste0("sccm.", sccmvarlst))
+        } else {
+          sccmvars <- "sccm.*"
+        }
+
+        ## Create query for SUBP_COND_CHNG_MTRX
+        sccmfromqry <- paste0(chgfromqry, " \nJOIN ", SCHEMA., 
+				"SUBP_COND_CHNG_MTRX sccm ON (sccm.PLT_CN = c.PLT_CN
+												AND sccm.PREV_PLT_CN = pcond.PLT_CN
+												AND sccm.CONDID = c.CONDID 
+												AND sccm.PREVCOND = pcond.CONDID)")
+
+        sccm.qry <- paste("select distinct", toString(paste0("sccm.", sccmvars)), 
+		                  " \nfrom", sccmfromqry, 
+                          " \nwhere", paste0(evalFilter.grm, stateFilters))
+
+ 	    ## Query SQLite database or R object
+        if (datsource == "sqlite") {
+          sccmx <- tryCatch( setDT(DBI::dbGetQuery(dbconn, sccm.qry)),
+			  error=function(e) {
+                    message("SUBP_COND_CHNG_MTRX query is invalid")
+                    return(NULL) })
+        } else {
+          sccmx <- tryCatch( setDT(sqldf::sqldf(sccm.qry, stringsAsFactors=FALSE)),
+			  error=function(e) {
+                    message("SUBP_COND_CHNG_MTRX query is invalid")
+                    return(NULL) })
+        }
+
+        if (!is.null(sccmx) && nrow(sccmx) != 0) {
+	  	  if (!"subp_cond_chng_mtrx" %in% names(dbqueries[[state]])) {
+            dbqueries[[state]]$subp_cond_chng_mtrx <- sccm.qry
+	      }
+
+          sccmx <- setDT(sccmx)
+          sccmx[, PLT_CN := as.character(PLT_CN)]
+          setkey(sccmx, PLT_CN, CONDID)
+
+          ## Subset overall filters from condx
+          sccmx <- sccmx[paste(sccmx$PLT_CN, sccmx$CONDID) %in% pcondID,]
+
+          if (returndata) {
+		  	if ("subp_cond_chng_mtrx" %in% names(tabs)) {
+              tabs$subp_cond_chng_mtrx <- rbind(tabs$subp_cond_chng_mtrx, data.frame(sccmx))
+	        } else {
+	          tabs$subp_cond_chng_mtrx <- data.frame(sccmx)
+	        }
+ 	        if (!"subp_cond_chng_mtrx" %in% names(tabIDs)) {
+              tabIDs$subp_cond_chng_mtrx <- "PLT_CN"
+	        }
+          }
+          if (savedata) {
+            index.unique.sccmx <- NULL
+            if (!append_layer) index.unique.sccmx <- c("PLT_CN", "CONDID")
+              datExportData(sccmx, 
+                  index.unique = index.unique.sccmx,
+                  savedata_opts = list(outfolder=outfolder, 
+                                out_fmt=out_fmt, 
+                                out_dsn=out_dsn, 
+                                out_layer="sccm",
+                                outfn.pre=outfn.pre, 
+                                overwrite_layer=overwrite_layer,
+                                append_layer=append_layer,
+                                outfn.date=outfn.date, 
+                                add_layer=TRUE)) 
+            rm(sccmx)
+            # gc() 
+          } 
+        }
+        if (datsource == "datamart") {
+          if (exists("SUBP_COND_CHNG_MTRX")) rm(SUBP_COND_CHNG_MTRX)
+          # gc()
+		}
+      }
     }
-  
+ 
     ##############################################################
     ## Tree data
     ##############################################################
@@ -2275,7 +2397,7 @@ DBgetPlots <- function (states = NULL,
           treeflds <- names(TREE)
         }
       }
- 
+
       message("\n",
       	"## STATUS: Getting tree data from TREE (", stabbr, ") ...", "\n")
       if (is.null(treenm)) {
@@ -2299,45 +2421,44 @@ DBgetPlots <- function (states = NULL,
         if (defaultVars) {
           tcols <- unique(c(treevarlst, tsumvarlst))
           tcols <- tcols[tcols %in% treeflds]
-
-          ## Add commas
           ttvars <- toString(paste0("t.", tcols))
           
           if (is.null(ttvars)) {
             stop("no columns in tree table")
-          }
-          
+          }         
         } else {
           ttvars <- "t.*"
         }
         
-        ## Create tfromqry
+        ## Create query for SEEDLING
         tfromqry <- paste0(pfromqry, " \nJOIN ", SCHEMA., 
 				treenm, " t ON (t.PLT_CN = p.", puniqueid, ")")
 
-        ## Create tree query
-        treeqry <- paste("select distinct", ttvars, 
+        tree.qry <- paste("select distinct", ttvars, 
 		                 "\nfrom", tfromqry, 
 						 "\nwhere", xfilter)
-        dbqueries$tree <- treeqry
 
-        ## Run tree query
+	    ## Query SQLite database or R object
         if (datsource == "sqlite") {
-          treex <- tryCatch( DBI::dbGetQuery(dbconn, treeqry),
+          treex <- tryCatch( DBI::dbGetQuery(dbconn, tree.qry),
 			error=function(e) {
                     message("TREE query is invalid\n")
                     return(NULL) })
         } else {
-          treex <- tryCatch( sqldf::sqldf(treeqry, stringsAsFactors=FALSE),
+          treex <- tryCatch( sqldf::sqldf(tree.qry, stringsAsFactors=FALSE),
 			error=function(e) {
                     message("TREE query is invalid")
                     return(NULL) })
         }
-
         if (!is.null(treex) && nrow(treex) != 0) {
+		  if (!"tree" %in% names(dbqueries[[state]])) {
+            dbqueries[[state]]$tree <- tree.qry
+	      }
+
           treex <- setDT(treex)
           treex[, PLT_CN := as.character(PLT_CN)]
-          setkey(treex, PLT_CN, CONDID)
+          treex[, CN := as.character(CN)]
+          setkey(treex, CN)
 
           ## Subset overall filters from condx
           treex <- treex[paste(treex$PLT_CN, treex$CONDID) %in% pcondID,]
@@ -2353,93 +2474,430 @@ DBgetPlots <- function (states = NULL,
               condx <- condx[condx$PLT_CN %in% treex$PLT_CN, ]
             }
           }
+		  
+          ## Write query to outfolder
+          if (saveqry) {
+            treeqryfn <- DBgetfn("tree", invtype,
+                                   outfn.pre, stabbr,
+                                   evalid = evalid,
+                                   qry = TRUE,
+                                   outfolder = outfolder,
+                                   overwrite = overwrite_layer,
+                                   outfn.date = outfn.date, 
+                                   ext = "txt")
+            outfile <- file(treeqryfn, "w")
+            cat(  treeqryfn, "\n", file=outfile)
+            close(outfile)
+          }
 
-          if (istree && !is.null(treex)) {
-            ## Check ACI
-            if (!ACI) {
-              ACIpltID <- condx[COND_STATUS_CD == 1, paste(PLT_CN, CONDID)]
-              treex <- treex[paste(treex$PLT_CN, treex$CONDID) %in% ACIpltID,]
-            } 
+          ## Make sure these variables are numeric
+          nbrvars <- c(FIESTAutils::ref_units$VARIABLE, "BHAGE")
+          if (any(nbrvars %in% names(treex)))
+             nbrvars <- nbrvars[which(nbrvars %in% names(treex))]
+          treex[, (nbrvars) := lapply(.SD, check.numeric), .SDcols=nbrvars]
 
-            ## Write query to outfolder
-            if (saveqry) {
-              treeqryfn <- DBgetfn("tree", invtype, outfn.pre, stabbr, 
-			evalid=evalid, qry=TRUE, outfolder=outfolder, 
-			overwrite=overwrite_layer, outfn.date=outfn.date, ext="txt")
-              outfile <- file(treeqryfn, "w")
-              cat(  treeqryfn, "\n", file=outfile)
-              close(outfile)
-            }
-
-            ## Make sure these variables are numeric
-            nbrvars <- c("DIA", "DRYBIO_BOLE", "DRYBIO_STUMP", "DRYBIO_TOP", 
-			"DRYBIO_SAPLING", "DRYBIO_WDLD_SPP", "BHAGE")
-            if (any(nbrvars %in% names(treex)))
-              nbrvars <- nbrvars[which(nbrvars %in% names(treex))]
-            treex[, (nbrvars) := lapply(.SD, check.numeric), .SDcols=nbrvars]
-
-            ## Change NA values to 0 values
-            #if (any(names(treex) %in% treenavars)) 
+          ## Change NA values to 0 values
+          #if (any(names(treex) %in% treenavars))
             #  treex <- DT_NAto0(treex, treenavars)
 
-            if ("DIA" %in% names(treex)) {
-              ## Create new tree variables - basal area
-              treex[, BA := DIA * DIA * 0.005454]
-            }
-            ## Create new biomass variables
-            if (!is.null(sppvars)) {
+          if ("DIA" %in% names(treex)) {
+            ## Create new tree variables - basal area
+            treex[, BA := DIA * DIA * 0.005454]
+          }
+		  
+          ## Create new biomass variables
+          if (!is.null(sppvars)) {
+
+            sppsql <- paste("select SPCD,", paste(sppvars, collapse=","),
+                              "from ref_species")
+            ref_spp <- tryCatch( sqldf::sqldf(sppsql),
+                        error=function(e) stop("spp query is invalid"))
+            if (!is.null(ref_spp)) {
               treenames <- names(treex)
-              treex <- merge(treex, refspp, by="SPCD")
-              sppvarsnew <- {}
+              treex <- merge(treex, ref_spp, by="SPCD")
+
               if (biojenk) {
-                if (!"BIOJENK_kg" %in% names(treex)) {
+                sppvarsnew <- {}
+                if (!"BIOJENK_kg" %in% treenames) {
                   treex[, BIOJENK_kg := exp(JENKINS_TOTAL_B1 + 
-                               JENKINS_TOTAL_B2 * log(DIA * 2.54))]
-                  treex[, JENKINS_TOTAL_B1 := NULL][, JENKINS_TOTAL_B2 := NULL]
+                                     JENKINS_TOTAL_B2 * log(DIA * 2.54))]
+                  treex[, JENKINS_TOTAL_B1 := NULL][, JENKINS_TOTAL_B2 := NULL]                  
                   sppvarsnew <- c(sppvarsnew[!sppvarsnew %in% 
                           c("JENKINS_TOTAL_B1", "JENKINS_TOTAL_B2")], "BIOJENK_kg")
                 }
-                if (!"BIOJENK_lb" %in% names(treex)) {
-                  treex[, BIOJENK_lb := BIOJENK_kg * 2.2046]  ## Converts back to lbs
+                if (!"BIOJENK_lb" %in% treenames) {
+                  treex[, BIOJENK_lb := BIOJENK_kg * 2.2046] ## Converts back to lbs
                   sppvarsnew <- c(sppvarsnew, "BIOJENK_lb")
                 }
               }
-              if (greenwt && "DRYBIO_AG" %in% names(treex) && 
-                      !"GREENBIO_AG" %in% names(treex)) {
+              if (greenwt && "DRYBIO_AG" %in% treenames && 
+                      !"GREENBIO_AG" %in% treenames) {
                 treex[, GREENBIO_AG := DRYBIO_AG * DRYWT_TO_GREENWT_CONVERSION]
                 sppvarsnew <- c(sppvarsnew, "DRYWT_TO_GREENWT_CONVERSION")		
-              }                
-              setcolorder(treex, c(treenames, sppvarsnew)) 
-            } 
-            ## Append data
-            if (treeReturn && returndata) {
-			  if ("tree" %in% names(tabs)) {
-                tabs$tree <- rbind(tabs$tree, data.frame(treex))
-			  } else {
-			    tabs$tree <- data.frame(treex)
-			  }
-			  if (!"tree" %in% names(tabIDs)) {
-                tabIDs$tree <- "PLT_CN"
-			  }
+              }  
+              setcolorder(treex, c(treenames, sppvarsnew))
             }
-            if ((savedata || !treeReturn)) {
-              message("saving tree table...")
-              index.unique.treex <- NULL
-              if (!append_layer) {
-                index.unique.treex <- c("PLT_CN", "CONDID", "SUBP", "TREE")
+          }
+		  
+          ## Append data
+          if (treeReturn && returndata) {
+			if ("tree" %in% names(tabs)) {
+              tabs$tree <- rbind(tabs$tree, data.frame(treex))
+			} else {
+			  tabs$tree <- data.frame(treex)
+			}
+			if (!"tree" %in% names(tabIDs)) {
+              tabIDs$tree <- "PLT_CN"
+			}
+          }
+          if ((savedata || !treeReturn)) {
+            message("saving tree table...")
+            index.unique.treex <- NULL
+            if (!append_layer) {
+              index.unique.treex <- list(c("PLT_CN", "CONDID", "SUBP", "TREE"), "TREE_CN",
+				                              "PREV_TREE_CN")
+            }
+            datExportData(treex, 
+                 index.unique = index.unique.treex,
+                 savedata_opts = list(outfolder = outfolder, 
+                                out_fmt = out_fmt, 
+                                out_dsn = out_dsn, 
+                                out_layer = "tree",
+                                outfn.pre = outfn.pre, 
+                                overwrite_layer = overwrite_layer,
+                                append_layer = append_layer,
+                                outfn.date = outfn.date, 
+                                add_layer = TRUE)) 
+            #rm(treex)
+            #gc()
+          }		  
+		  
+		  ##############################################################
+          ## Tree unioned data
+          ##############################################################
+		  if (isgrm && !is.null(treex)) {
+		
+		    ttvarsa <- ttvars
+		    ttvarsb <- gsub("t.", "ptree.", ttvars)
+
+		    ## Create query for TREE
+            tchgfromqry <- paste0(chgfromqry, 
+		        " \nJOIN ", SCHEMA.,
+				     "TREE t ON (t.CONDID = c.CONDID and t.PLT_CN = p.CN and t.PREVCOND = pcond.CONDID)",
+				" \nLEFT OUTER JOIN ", SCHEMA.,
+				     "TREE ptree ON (t.PREV_TRE_CN = ptree.CN)")
+ 
+
+            treea.qry <- paste("select distinct", ttvarsa, 
+		                 "\nfrom", tchgfromqry, 
+						 "\nwhere", xfilter)
+            treeb.qry <- paste("select distinct", ttvarsb, 
+		                 "\nfrom", tchgfromqry, 
+						 "\nwhere", xfilter)
+            treeu.qry <- paste(treea.qry, "UNION", treeb.qry)
+            cat("\n", "## STATUS: GETTING TREE CHANGE DATA (", stabbr, ") ...", "\n")
+
+
+	        ## Query SQLite database or R object
+            if (datsource == "sqlite") {
+              treeux <- tryCatch( DBI::dbGetQuery(dbconn, treeu.qry),
+			    error=function(e) {
+                    message("TREE query is invalid\n")
+                    return(NULL) })
+            } else {
+              treeux <- tryCatch( sqldf::sqldf(treeu.qry, stringsAsFactors=FALSE),
+			    error=function(e) {
+                    message("TREEU query is invalid")
+                    return(NULL) })
+            }
+
+            if (!is.null(treeux) && nrow(treeux) != 0) {
+		      if (!"treeu" %in% names(dbqueries[[state]])) {
+                dbqueries[[state]]$treeu <- treeu.qry
+	          }
+
+              treeux <- setDT(treeux)
+              treeux[, PLT_CN := as.character(PLT_CN)]
+              treeux[, CN := as.character(CN)]
+              setkey(treeux, CN)
+
+              ## Subset overall filters from condx
+              treeux <- treeux[paste(treeux$PLT_CN, treeux$CONDID) %in% pcondID,]
+
+              ## Filter treex with alltFilter
+              ###########################################
+              if (!is.null(alltFilter)) {
+                treeuxf <- datFilter(x=treeux, xfilter=alltFilter)$xf
+                if (!is.null(treeuxf)) treeux <- treeuxf
+
+                pltux <- pltux[pltux$CN %in% treeux$PLT_CN, ]
+                condux <- condux[condux$PLT_CN %in% treeux$PLT_CN, ]
               }
-              datExportData(treex, 
-                   index.unique = index.unique.treex,
+
+              ## Check ACI
+              #if (!ACI) {
+              #  ACIpltID <- condux[COND_STATUS_CD == 1, paste(PLT_CN, CONDID)]
+              #  treeux <- treeux[paste(treeux$PLT_CN, treeux$CONDID) %in% ACIpltID,]
+              #}
+
+              ## Write query to outfolder
+              if (saveqry) {
+                treeuqryfn <- DBgetfn("treeu", invtype,
+                                   outfn.pre, stabbr,
+                                   evalid = evalid,
+                                   qry = TRUE,
+                                   outfolder = outfolder,
+                                   overwrite = overwrite_layer,
+                                   outfn.date = outfn.date, 
+                                   ext = "txt")
+                outfile <- file(treeuqryfn, "w")
+                cat(  treeuqryfn, "\n", file=outfile)
+                close(outfile)
+              }
+
+              ## Make sure these variables are numeric
+              nbrvars <- c("DIA", "DRYBIO_BOLE", "DRYBIO_STUMP", "DRYBIO_TOP",
+                         "DRYBIO_SAPLING", "DRYBIO_WDLD_SPP", "BHAGE")
+              if (any(nbrvars %in% names(treeux)))
+                nbrvars <- nbrvars[which(nbrvars %in% names(treeux))]
+              treeux[, (nbrvars) := lapply(.SD, check.numeric), .SDcols=nbrvars]
+
+              if ("DIA" %in% names(treeux)) {
+                ## Create new tree variables - basal area
+                treeux[, BA := DIA * DIA * 0.005454]
+              }
+			  
+              ## Create new biomass variables
+              if (!is.null(sppvars)) {
+                treenames <- names(treeux)
+                treeux <- merge(treex, refspp, by="SPCD")
+                sppvarsnew <- {}
+                if (biojenk) {
+                  if (!"BIOJENK_kg" %in% names(treeux)) {
+                    treeux[, BIOJENK_kg := exp(JENKINS_TOTAL_B1 + 
+                               JENKINS_TOTAL_B2 * log(DIA * 2.54))]
+                    treeux[, JENKINS_TOTAL_B1 := NULL][, JENKINS_TOTAL_B2 := NULL]
+                    sppvarsnew <- c(sppvarsnew[!sppvarsnew %in% 
+                          c("JENKINS_TOTAL_B1", "JENKINS_TOTAL_B2")], "BIOJENK_kg")
+                  }
+                  if (!"BIOJENK_lb" %in% names(treeux)) {
+                    treeux[, BIOJENK_lb := BIOJENK_kg * 2.2046]  ## Converts back to lbs
+                    sppvarsnew <- c(sppvarsnew, "BIOJENK_lb")
+                  }
+                }
+                if (greenwt && "DRYBIO_AG" %in% names(treeux) && 
+                      !"GREENBIO_AG" %in% names(treeux)) {
+                  treeux[, GREENBIO_AG := DRYBIO_AG * DRYWT_TO_GREENWT_CONVERSION]
+                  sppvarsnew <- c(sppvarsnew, "DRYWT_TO_GREENWT_CONVERSION")		
+                }                
+                setcolorder(treeux, c(treenames, sppvarsnew)) 
+              } 
+			  
+              ## Append data
+              if (treeReturn && returndata) {
+			    if ("treeu" %in% names(tabs)) {
+                  tabs$treeu <- rbind(tabs$tree , data.frame(treeux))
+			    } else {
+			      tabs$treeu <- data.frame(treeux)
+			    }
+			    if (!"treeu" %in% names(tabIDs)) {
+                  tabIDs$treeu <- "PLT_CN"
+			    }
+              }
+			  
+              if ((savedata || !treeReturn)) {
+                message("saving treeu table...")
+                index.unique.treeux <- NULL
+                if (!append_layer) {
+                  index.unique.treeux <- list(c("PLT_CN", "CONDID", "SUBP", "TREE"), 
+				                               "TREE_CN")
+                }
+                datExportData(treeux, 
+                   index.unique = index.unique.treeux,
                    savedata_opts = list(outfolder = outfolder, 
                                         out_fmt = out_fmt, 
                                         out_dsn = out_dsn, 
-                                        out_layer = "tree",
+                                        out_layer = "treeu",
                                         outfn.pre = outfn.pre, 
                                         overwrite_layer = overwrite_layer,
                                         append_layer = append_layer,
                                         outfn.date = outfn.date, 
                                         add_layer = TRUE)) 
-              rm(treex)
+                rm(treex)
+                # gc()
+			  }
+            }
+			
+            ##############################################################
+            ## Tree Change, Growth, and Mortality 
+		    ## (TREE_GRM_COMPONENT, TREE_GRM_BEGIN, TREE_GRM, MIDPT)
+            ##############################################################
+            message("\n",
+             "## STATUS: Getting GRM data from TREE_GRM_COMPONENT (", stabbr, ") ...", "\n")
+    
+            ## GRM data
+            if (datsource == "sqlite") {
+              grmnm <- chkdbtab(dbtablst, grm_layer)
+              if (!is.null(grmnm)) {
+                ## Get TREE_GRM_COMPONENT fields
+                grmflds <- DBI::dbListFields(dbconn, grmnm)
+              }
+            } else if (datsource == "datamart") {
+              TREE_GRM_COMPONENT <- DBgetCSV("TREE_GRM_COMPONENT", stabbr, 
+		            returnDT=TRUE, stopifnull=FALSE)
+              if (!is.null(TREE_GRM_COMPONENT)) {
+                grmnm <- "TREE_GRM_COMPONENT"
+                grmflds <- names(TREE_GRM_COMPONENT)
+              }
+            } else if (datsource %in% c("csv", "obj")) {
+              TREE_GRM_COMPONENT <- pcheck.table(grm_layer, 
+					stopifnull=TRUE, stopifinvalid=TRUE)
+              if (!is.null(TREE_GRM_COMPONENT)) {
+                grmnm <- "TREE_GRM_COMPONENT"
+                names(TREE_GRM_COMPONENT) <- toupper(names(TREE_GRM_COMPONENT))
+                grmflds <- names(TREE_GRM_COMPONENT)
+              }
+            }
+
+            if (is.null(grmnm)) {
+              grmx <- NULL
+              #isgrm <- NULL
+            } else {
+
+ 	          ## TREE_GRM_COMPONENT
+	          #######################################################################
+
+              ## Create query for TREE_GRM_COMPONENT
+              grmfromqry <- paste0(pfromqry, " JOIN ", SCHEMA.,
+				    grmnm, " grm ON (grm.PLT_CN = p.", puniqueid, ")")
+
+              grm.qry <- paste("select distinct grm.* \nfrom", grmfromqry, 
+		                "\nwhere", paste0(evalFilter.grm, stateFilters))
+
+	          ## Query SQLite database or R object
+              if (datsource == "sqlite") {
+                grmx <- tryCatch( DBI::dbGetQuery(dbconn, grm.qry),
+			      error=function(e) {
+                    message("TREE_GRM_COMPONENT query is invalid")
+                    return(NULL) })
+
+              } else {
+                grmx <- tryCatch( sqldf::sqldf(grm.qry, stringsAsFactors=FALSE),
+			      error=function(e) {
+                    message("TREE_GRM_COMPONENT query is invalid")
+                    return(NULL) })
+              }
+              if (!is.null(grmx) && nrow(grmx) != 0) {
+	  	        if (!"tree_grm_component" %in% names(dbqueries[[state]])) {
+                  dbqueries[[state]]$tree_grm_component <- grm.qry
+	            }
+
+                grmx <- setDT(grmx)
+                grmx[, PLT_CN := as.character(PLT_CN)]
+                grmx[, TRE_CN := as.character(TRE_CN)]
+                setkey(grmx, TRE_CN)
+
+                ## Subset overall filters from condx
+                grmx <- grmx[treeux$CN,]
+
+                if (returndata) {
+		  	      if ("tree_grm_component" %in% names(tabs)) {
+                    tabs$tree_grm_component <- rbind(tabs$tree_grm_component, 
+						data.frame(grmx))
+	              } else {
+	                tabs$tree_grm_component <- data.frame(grmx)
+	              }
+ 	              if (!"tree_grm_component" %in% names(tabIDs)) {
+                    tabIDs$tree_grm_component <- "PLT_CN"
+	              }
+                }
+                if (savedata) {
+                  index.unique.grmx <- NULL
+                  if (!append_layer) index.unique.grmx <- c("TRE_CN")
+                  datExportData(grmx, 
+                      index.unique = index.unique.grmx,
+                      savedata_opts = list(outfolder=outfolder, 
+                                out_fmt=out_fmt, 
+                                out_dsn=out_dsn, 
+                                out_layer="tree_grm_component",
+                                outfn.pre=outfn.pre, 
+                                overwrite_layer=overwrite_layer,
+                                append_layer=append_layer,
+                                outfn.date=outfn.date, 
+                                add_layer=TRUE))
+                  rm(grmx)
+                  # gc()  
+                } 
+              }
+		
+		      ## TREE_GRM_BEGIN
+	          #######################################################################
+
+              ## Create query for TREE_GRM_BEGIN
+              grmbfromqry <- paste0(pfromqry, " JOIN ", SCHEMA.,
+				grmnm, " grm ON (grm.PLT_CN = p.", puniqueid, ")")
+
+              grmb.qry <- paste("select distinct grm.* \nfrom", grmbfromqry, 
+		                "\nwhere", paste0(evalFilter.grm, stateFilters))
+
+	          ## Query SQLite database or R object
+              if (datsource == "sqlite") {
+                grmbx <- tryCatch( DBI::dbGetQuery(dbconn, grmb.qry),
+			      error=function(e) {
+                    message("TREE_GRM_BEGIN query is invalid")
+                    return(NULL) })
+
+              } else {
+                grmbx <- tryCatch( sqldf::sqldf(grmb.qry, stringsAsFactors=FALSE),
+			      error=function(e) {
+                    message("TREE_GRM_BEGIN query is invalid")
+                    return(NULL) })
+              }
+              if (!is.null(grmbx) && nrow(grmbx) != 0) {
+	  	        if (!"tree_grm_begin" %in% names(dbqueries[[state]])) {
+                  dbqueries[[state]]$tree_grm_begin <- grmb.qry
+	            }
+
+                grmbx <- setDT(grmbx)
+                grmbx[, PLT_CN := as.character(PLT_CN)]
+                grmbx[, TRE_CN := as.character(TRE_CN)]
+                setkey(grmbx, TRE_CN)
+
+                ## Subset overall filters from condx
+                grmbx <- grmbx[treeux$CN,]
+
+                if (returndata) {
+		  	      if ("tree_grm_component" %in% names(tabs)) {
+                    tabs$tree_grm_component <- rbind(tabs$tree_grm_component, 
+						data.frame(grmx))
+	              } else {
+	                tabs$tree_grm_component <- data.frame(grmx)
+	              }
+ 	              if (!"tree_grm_component" %in% names(tabIDs)) {
+                    tabIDs$tree_grm_component <- "PLT_CN"
+	              }
+                }
+                if (savedata) {
+                  index.unique.grmx <- NULL
+                  if (!append_layer) index.unique.grmx <- c("TRE_CN")
+                  datExportData(grmx, 
+                      index.unique = index.unique.grmx,
+                      savedata_opts = list(outfolder=outfolder, 
+                                out_fmt=out_fmt, 
+                                out_dsn=out_dsn, 
+                                out_layer="tree_grm_component",
+                                outfn.pre=outfn.pre, 
+                                overwrite_layer=overwrite_layer,
+                                append_layer=append_layer,
+                                outfn.date=outfn.date, 
+                                add_layer=TRUE))
+                  rm(grmx)
+                  # gc()  
+                } 
+              }
+            }
+            if (datsource == "datamart") {
+              if (exists("TREE_GRM_COMPONENT")) rm(TREE_GRM_COMPONENT)
               # gc()
             }
           }
@@ -2448,9 +2906,9 @@ DBgetPlots <- function (states = NULL,
             # gc()
           }
         }
-      }
-    }
-    
+	  }
+	}
+	
     ##############################################################
     ## Plot counts and spatial data
     ##############################################################
@@ -2533,7 +2991,9 @@ DBgetPlots <- function (states = NULL,
 				  rbind(get(paste0("xy_", coordType)), get(paste0("xyx_", coordType))))
           } 
         }
-        dbqueries$xy <- xydat$xyqry
+		if (!"xy" %in% names(dbqueries[[state]])) {
+          dbqueries[[state]]$xy <- xydat$xyqry
+	    }
       }
     }
 
@@ -2595,30 +3055,32 @@ DBgetPlots <- function (states = NULL,
           ssvars <- "s.*"
         }
 
-        ## Create sfromqry
+        ## Create query for SEEDLING
         sfromqry <- paste0(pfromqry, " \nJOIN ", SCHEMA., 
 				seednm, " s ON (s.PLT_CN = p.", puniqueid, ")")
 
-        ## Create seedling query
-        seedqry <- paste("select distinct", ssvars, 
+        seed.qry <- paste("select distinct", ssvars, 
 		                 "\nfrom", sfromqry, 
 						 "\nwhere", xfilter)
-        ## Run seedling query
+						 
+	    ## Query SQLite database or R object
         if (datsource == "sqlite") {
-          seedx <- tryCatch( DBI::dbGetQuery(dbconn, seedqry),
+          seedx <- tryCatch( DBI::dbGetQuery(dbconn, seed.qry),
 			error=function(e) {
                     message("seed query is invalid\n")
-                    message(seedqry)
+                    message(seed.qry)
                     return(NULL) })
         } else {
-          seedx <- tryCatch( sqldf::sqldf(seedqry, stringsAsFactors=FALSE),
+          seedx <- tryCatch( sqldf::sqldf(seed.qry, stringsAsFactors=FALSE),
 			error=function(e) {
                     message("seed query is invalid\n")
-                    message(seedqry)
+                    message(seed.qry)
                     return(NULL) })
         }
         if (!is.null(seedx) && nrow(seedx) != 0 && length(ssvars) > 0) {
-          dbqueries$seed <- seedqry
+	      if (!"seed" %in% names(dbqueries[[state]])) {
+            dbqueries[[state]]$seed <- seed.qry
+	      }
 
           seedx <- setDT(seedx)
           seedx[, PLT_CN := as.character(PLT_CN)]
@@ -2670,7 +3132,7 @@ DBgetPlots <- function (states = NULL,
 	        }
           }
           if (savedata) {
-            message("saving seed table...")
+            message("saving seedling table...")
             index.unique.seedx <- NULL
             if (!append_layer) {
               index.unique.seedx <- c("PLT_CN", "CONDID", "SUBP")
@@ -2727,9 +3189,7 @@ DBgetPlots <- function (states = NULL,
         P2VEG_SUBPLOT_SPP <- 
 		      DBgetCSV("P2VEG_SUBPLOT_SPP", stabbr, returnDT=TRUE, 
 		      stopifnull=FALSE)
-        if (is.null(P2VEG_SUBPLOT_SPP)) {
-          message("there is no P2VEG_SUBPLOT_SPP table in datamart")
-        } else {
+        if (!is.null(P2VEG_SUBPLOT_SPP)) {
           vsubpsppnm <- "P2VEG_SUBPLOT_SPP"
           names(P2VEG_SUBPLOT_SPP) <- toupper(names(P2VEG_SUBPLOT_SPP))
           vsppflds <- names(P2VEG_SUBPLOT_SPP)
@@ -2738,9 +3198,7 @@ DBgetPlots <- function (states = NULL,
         P2VEG_SUBP_STRUCTURE <- 
 		      DBgetCSV("P2VEG_SUBP_STRUCTURE", stabbr, returnDT=TRUE, 
 		      stopifnull=FALSE)
-        if (is.null(P2VEG_SUBP_STRUCTURE)) {
-          message("there is no P2VEG_SUBP_STRUCTURE table in datamart")
-        } else {
+        if (!is.null(P2VEG_SUBP_STRUCTURE)) {
           vsubpstrnm <- "P2VEG_SUBP_STRUCTURE"
           names(P2VEG_SUBP_STRUCTURE) <- toupper(names(P2VEG_SUBP_STRUCTURE))
           vstrflds <- names(P2VEG_SUBP_STRUCTURE)
@@ -2748,9 +3206,7 @@ DBgetPlots <- function (states = NULL,
       } else if (datsource %in% c("csv", "obj")) {
         P2VEG_SUBPLOT_SPP <- pcheck.table(vsubpspp_layer, 
 					stopifnull=TRUE, stopifinvalid=TRUE)
-        if (is.null(P2VEG_SUBPLOT_SPP)) {
-          message("the P2VEG_SUBPLOT_SPP is invalid")
-        } else {
+        if (!is.null(P2VEG_SUBPLOT_SPP)) {
           vsubpsppnm <- "P2VEG_SUBPLOT_SPP"
           names(P2VEG_SUBPLOT_SPP) <- toupper(names(P2VEG_SUBPLOT_SPP))
           vsppflds <- names(P2VEG_SUBPLOT_SPP)
@@ -2777,30 +3233,32 @@ DBgetPlots <- function (states = NULL,
           vsubpsppvars <- "v.*"
         }
 
-        ## Create vsppfromqry
+        ## Create query for P2VEG_SUBPLOT_SPP
         vsppfromqry <- paste0(pfromqry, " \nJOIN ", SCHEMA., 
 				vsubpsppnm, " v ON v.PLT_CN = p.", puniqueid)
 
-        ## Create P2VEG_SUBPLOT_SPP query
-        vsubpsppqry <- paste("select distinct", vsubpsppvars, 
+        vsubpspp.qry <- paste("select distinct", vsubpsppvars, 
 		                     "\nfrom", vsppfromqry,
 							 "\nwhere", paste0(evalFilter.veg, stateFilters))
-        dbqueries$vsubpspp <- vsubpsppqry
 
-        ## Run query for P2VEG_SUBPLOT_SPP
+	    ## Query SQLite database or R object
         if (datsource == "sqlite") {
-          p2veg_subplot_sppx <- tryCatch( DBI::dbGetQuery(dbconn, vsubpsppqry),
+          p2veg_subplot_sppx <- tryCatch( DBI::dbGetQuery(dbconn, vsubpspp.qry),
 			error=function(e) {
                     message("P2VEG_SUBPLOT_SPP query is invalid\n")
                     return(NULL) })
         } else {
-          p2veg_subplot_sppx <- tryCatch( sqldf::sqldf(vsubpsppqry, stringsAsFactors=FALSE),
+          p2veg_subplot_sppx <- tryCatch( sqldf::sqldf(vsubpspp.qry, stringsAsFactors=FALSE),
 			error=function(e) {
                     message("P2VEG_SUBPLOT_SPP query is invalid\n")
                     return(NULL) })
         }
  
         if (!is.null(p2veg_subplot_sppx) && nrow(p2veg_subplot_sppx) != 0) {
+	  	  if (!"p2veg_subplot_spp" %in% names(dbqueries[[state]])) {
+            dbqueries[[state]]$p2veg_subplot_spp <- vsubpspp.qry
+	      }
+
           p2veg_subplot_sppx <- setDT(p2veg_subplot_sppx)
           p2veg_subplot_sppx[, PLT_CN := as.character(PLT_CN)]
           setkey(p2veg_subplot_sppx, PLT_CN)
@@ -2809,13 +3267,14 @@ DBgetPlots <- function (states = NULL,
           p2veg_subplot_sppx <- p2veg_subplot_sppx[paste(PLT_CN, CONDID) %in% pcondID,]
 
           if (returndata) {
-		  	if ("vsubpspp" %in% names(tabs)) {
-              tabs$vsubpspp <- rbind(tabs$vsubpspp, data.frame(p2veg_subplot_sppx))
+		  	if ("p2veg_subplot_spp" %in% names(tabs)) {
+              tabs$p2veg_subplot_spp <- rbind(tabs$p2veg_subplot_spp, 
+							data.frame(p2veg_subplot_sppx))
 	        } else {
-	          tabs$vsubpspp <- data.frame(p2veg_subplot_sppx)
+	          tabs$p2veg_subplot_spp <- data.frame(p2veg_subplot_sppx)
 	        }
- 	        if (!"vsubpspp" %in% names(tabIDs)) {
-              tabIDs$vsubpspp <- "PLT_CN"
+ 	        if (!"p2veg_subplot_spp" %in% names(tabIDs)) {
+              tabIDs$p2veg_subplot_spp <- "PLT_CN"
 	        }
           }
           if (savedata) {
@@ -2851,29 +3310,31 @@ DBgetPlots <- function (states = NULL,
           vsubpstrvars <- "v.*"
         }
 
-        ## Create vstrfromqry
+        ## Create query for P2VEG_SUBP_STRUCTURE
         vstrfromqry <- paste0(pfromqry, " \nJOIN ", SCHEMA., 
 				vsubpstrnm, " v ON v.PLT_CN = p.", puniqueid)
 
-        ## Create P2VEG_SUBPLOT_SPP query
-        vsubpstrqry <- paste("select distinct", vsubpstrvars, 
+        vsubpstr.qry <- paste("select distinct", vsubpstrvars, 
 		                     "\nfrom", vstrfromqry,
 							 "\nwhere", paste0(evalFilter.veg, stateFilters))
-        ## Run query for P2VEG_SUBP_STRUCTURE
+							 
+	    ## Query SQLite database or R object
         if (datsource == "sqlite") {
-          p2veg_subp_structurex <- tryCatch( DBI::dbGetQuery(dbconn, vsubpstrqry),
+          p2veg_subp_structurex <- tryCatch( DBI::dbGetQuery(dbconn, vsubpstr.qry),
 			error=function(e) {
                     message("P2VEG_SUBP_STRUCTURE query is invalid\n")
                     return(NULL) })
         } else {
-          p2veg_subp_structurex <- tryCatch( sqldf::sqldf(vsubpstrqry, stringsAsFactors=FALSE),
+          p2veg_subp_structurex <- tryCatch( sqldf::sqldf(vsubpstr.qry, stringsAsFactors=FALSE),
 			error=function(e) {
                     message("P2VEG_SUBP_STRUCTURE query is invalid\n")
                     return(NULL) })
         }
 
         if (!is.null(p2veg_subp_structurex) && nrow(p2veg_subp_structurex) != 0) {
-          dbqueries$vsubpstr <- vsubpstrqry
+	  	  if (!"p2veg_subp_structure" %in% names(dbqueries[[state]])) {
+            dbqueries[[state]]$p2veg_subp_structure <- vsubpstr.qry
+	      }
 
           p2veg_subp_structurex <- setDT(p2veg_subp_structurex)
           p2veg_subp_structurex[, PLT_CN := as.character(PLT_CN)]
@@ -2883,13 +3344,14 @@ DBgetPlots <- function (states = NULL,
           p2veg_subp_structurex <- p2veg_subp_structurex[paste(PLT_CN, CONDID) %in% pcondID,]
 
           if (returndata) {
-		  	if ("vsubpstr" %in% names(tabs)) {
-              tabs$vsubpstr <- rbind(tabs$vsubpstr, data.frame(p2veg_subp_structurex))
+		  	if ("p2veg_subp_structure" %in% names(tabs)) {
+              tabs$p2veg_subp_structure <- 
+					rbind(tabs$p2veg_subp_structure, data.frame(p2veg_subp_structurex))
 	        } else {
-	          tabs$vsubpstr <- data.frame(p2veg_subp_structurex)
+	          tabs$p2veg_subp_structure <- data.frame(p2veg_subp_structurex)
 	        }
- 	        if (!"vsubpstr" %in% names(tabIDs)) {
-              tabIDs$vsubpstr <- "PLT_CN"
+ 	        if (!"p2veg_subp_structure" %in% names(tabIDs)) {
+              tabIDs$p2veg_subp_structure <- "PLT_CN"
 	        }
           }
           if (savedata) {
@@ -2942,9 +3404,7 @@ DBgetPlots <- function (states = NULL,
         INVASIVE_SUBPLOT_SPP <- 
 		      DBgetCSV("INVASIVE_SUBPLOT_SPP", stabbr, returnDT=TRUE, 
 		      stopifnull=FALSE)
-        if (is.null(P2VEG_SUBPLOT_SPP)) {
-          message("there is no INVASIVE_SUBPLOT_SPP table in datamart")
-        } else {
+        if (!is.null(P2VEG_SUBPLOT_SPP)) {
           invsubpnm <- "INVASIVE_SUBPLOT_SPP"
           names(INVASIVE_SUBPLOT_SPP) <- toupper(names(INVASIVE_SUBPLOT_SPP))
           invflds <- names(INVASIVE_SUBPLOT_SPP)
@@ -2954,9 +3414,7 @@ DBgetPlots <- function (states = NULL,
 
         INVASIVE_SUBPLOT_SPP <- pcheck.table(invsubp_layer, 
 					stopifnull=TRUE, stopifinvalid=TRUE)
-        if (is.null(INVASIVE_SUBPLOT_SPP)) {
-          message("the INVASIVE_SUBPLOT_SPP is invalid")
-        } else {
+        if (!is.null(INVASIVE_SUBPLOT_SPP)) {
           invsubpnm <- "INVASIVE_SUBPLOT_SPP"
           names(INVASIVE_SUBPLOT_SPP) <- toupper(names(INVASIVE_SUBPLOT_SPP))
           invflds <- names(INVASIVE_SUBPLOT_SPP)
@@ -2974,29 +3432,30 @@ DBgetPlots <- function (states = NULL,
           invsubpvars <- "v.*"
         }
 
-        ## Create invfromqry
+        ## Create query for INVASIVE_SUBPLOT_SPP
         invfromqry <- paste0(pfromqry, " \nJOIN ", SCHEMA., 
 				invsubpnm, " v ON v.PLT_CN = p.", puniqueid)
 
-        ## Create query for INVASIVE_SUBPLOT_SPP
-        invsubpqry <- paste("select distinct", invsubpvars, 
+        invsubp.qry <- paste("select distinct", invsubpvars, 
 		                    "\nfrom", invfromqry,
 							"\nwhere", paste0(evalFilter.inv, stateFilters))
 
-        ## Run query for INVASIVE_SUBPLOT_SPP
+	    ## Query SQLite database or R object
         if (datsource == "sqlite") {
-          invasive_subplot_sppx <- tryCatch( DBI::dbGetQuery(dbconn, invsubpqry),
+          invasive_subplot_sppx <- tryCatch( DBI::dbGetQuery(dbconn, invsubp.qry),
 			error=function(e) {
                     message("INVASIVE_SUBPLOT_SPP query is invalid")
                     return(NULL) })
         } else {
-          invasive_subplot_sppx <- tryCatch( sqldf::sqldf(invsubpqry, stringsAsFactors=FALSE),
+          invasive_subplot_sppx <- tryCatch( sqldf::sqldf(invsubp.qry, stringsAsFactors=FALSE),
 			error=function(e) {
                     message("INVASIVE_SUBPLOT_SPP query is invalid")
                     return(NULL) })
         }
         if (!is.null(invasive_subplot_sppx) && nrow(invasive_subplot_sppx) != 0) {
-          dbqueries$invsubp <- invsubpqry
+	  	  if (!"invasive_subplot_spp" %in% names(dbqueries[[state]])) {
+            dbqueries[[state]]$invasive_subplot_spp <- vsubpstr.qry
+	      }
 
           invasive_subplot_sppx <- setDT(invasive_subplot_sppx)
           invasive_subplot_sppx[, PLT_CN := as.character(PLT_CN)]
@@ -3006,13 +3465,14 @@ DBgetPlots <- function (states = NULL,
           invasive_subplot_sppx <- invasive_subplot_sppx[paste(PLT_CN, CONDID) %in% pcondID,]
 
           if (returndata) {
-		  	if ("invsubp" %in% names(tabs)) {
-              tabs$invsubp <- rbind(tabs$invsubp, data.frame(invasive_subplot_sppx))
+		  	if ("invasive_subplot_spp" %in% names(tabs)) {
+              tabs$invasive_subplot_spp <- rbind(tabs$invasive_subplot_spp, 
+						data.frame(invasive_subplot_sppx))
 	        } else {
-	          tabs$invsubp <- data.frame(invasive_subplot_sppx)
+	          tabs$invasive_subplot_spp <- data.frame(invasive_subplot_sppx)
 	        }
- 	        if (!"invsubp" %in% names(tabIDs)) {
-              tabIDs$invsubp <- "PLT_CN"
+ 	        if (!"invasive_subplot_spp" %in% names(tabIDs)) {
+              tabIDs$invasive_subplot_spp <- "PLT_CN"
 	        }
           }
           if (savedata) {
@@ -3076,18 +3536,14 @@ DBgetPlots <- function (states = NULL,
           subpflds <- names(SUBPLOT)
         }
         SUBP_COND <- DBgetCSV("SUBP_COND", stabbr, returnDT=TRUE, stopifnull=FALSE)
-        if (is.null(SUBP_COND)) {
-          message("there is no SUBP_COND table in datamart")
-        } else {
+        if (!is.null(SUBP_COND)) {
           subpcondnm <- "SUBP_COND"
           subpcflds <- names(SUBP_COND)
         }
       } else if (datsource %in% c("csv", "obj")) {
         SUBPLOT <- pcheck.table(subplot_layer, 
 					stopifnull=TRUE, stopifinvalid=TRUE)
-        if (is.null(SUBPLOT)) {
-          message("the SUBPLOT table is invalid")
-        } else {
+        if (!is.null(SUBPLOT)) {
           subplotnm <- "SUBPLOT"
           names(SUBPLOT) <- toupper(names(SUBPLOT))
           subpflds <- names(SUBPLOT)
@@ -3114,29 +3570,30 @@ DBgetPlots <- function (states = NULL,
           subpvars <- "subp.*"
         }
 
-        ## Create subpfromqry
+        ## Create query for SUBPLOT
         subpfromqry <- paste0(pfromqry, " \nJOIN ", SCHEMA., 
 				subplotnm, " subp ON subp.PLT_CN = p.", puniqueid)
 
-        ## Create query for SUBPLOT
-        subpqry <- paste("select distinct", subpvars, 
+        subp.qry <- paste("select distinct", subpvars, 
 		                 "\nfrom", subpfromqry,
 						 "\nwhere", paste0(evalFilter, stateFilters))
 
-        ## Run query for SUBPLOT
+	    ## Query SQLite database or R object
         if (datsource == "sqlite") {
-          subpx <- tryCatch( DBI::dbGetQuery(dbconn, subpqry),
+          subpx <- tryCatch( DBI::dbGetQuery(dbconn, subp.qry),
 			error=function(e) {
                     message("SUBPLOT query is invalid\n")
                     return(NULL) })
         } else {
-          subpx <- tryCatch( sqldf::sqldf(subpqry, stringsAsFactors=FALSE),
+          subpx <- tryCatch( sqldf::sqldf(subp.qry, stringsAsFactors=FALSE),
 			error=function(e) {
                     message("SUBPLOT query is invalid\n")
                     return(NULL) })
         }
         if (!is.null(subpx) && nrow(subpx) != 0) {
-          dbqueries$subplot <- subpqry
+	  	  if (!"subplot" %in% names(dbqueries[[state]])) {
+            dbqueries[[state]]$subplot <- subp.qry
+	      }
 
           subpx <- setDT(subpx)
           subpx[, PLT_CN := as.character(PLT_CN)]
@@ -3186,29 +3643,30 @@ DBgetPlots <- function (states = NULL,
           subpcvars <- "subpc.*"
         }
 
-        ## Create subpcfromqry
+        ## Create query for SUBP_COND
         subpcfromqry <- paste0(pfromqry, " \nJOIN ", SCHEMA., 
 				subpcondnm, " subpc ON subpc.PLT_CN = p.", puniqueid)
 
-        ## Create query for SUBP_COND
-        subpcqry <- paste("select", subpcvars, 
+        subpc.qry <- paste("select", subpcvars, 
 		                  "\nfrom", subpcfromqry,
 						  "\nwhere", paste0(evalFilter, stateFilters))
 
-        ## Run query for SUBP_COND
+	    ## Query SQLite database or R object
         if (datsource == "sqlite") {
-          subpcx <- tryCatch( DBI::dbGetQuery(dbconn, subpcqry),
+          subpcx <- tryCatch( DBI::dbGetQuery(dbconn, subpc.qry),
 			error=function(e) {
                     message("SUBP_COND query is invalid")
                     return(NULL) })
         } else {
-          subpcx <- tryCatch( sqldf::sqldf(subpcqry, stringsAsFactors=FALSE),
+          subpcx <- tryCatch( sqldf::sqldf(subpc.qry, stringsAsFactors=FALSE),
 			error=function(e) {
                     message("SUBP_COND query is invalid")
                     return(NULL) })
         }
         if(!is.null(subpcx) && nrow(subpcx) != 0){
-          dbqueries$subp_cond <- subpcqry
+	  	  if (!"subp_cond" %in% names(dbqueries[[state]])) {
+            dbqueries[[state]]$subp_cond <- subpc.qry
+	      }
 
           subpcx <- setDT(subpcx)
           subpcx[, PLT_CN := as.character(PLT_CN)]
@@ -3273,18 +3731,14 @@ DBgetPlots <- function (states = NULL,
       } else if (datsource == "datamart") {
         COND_DWM_CALC <- DBgetCSV("COND_DWM_CALC", stabbr, returnDT=TRUE, 
 		      stopifnull=FALSE)
-        if (is.null(COND_DWM_CALC)) {
-          message("there is no COND_DWM_CALC table in datamart")
-        } else {
+        if (!is.null(COND_DWM_CALC)) {
           dwmnm <- "COND_DWM_CALC"
           dwmflds <- names(COND_DWM_CALC)
         }
       } else if (datsource %in% c("csv", "obj")) {
         COND_DWM_CALC <- pcheck.table(dwm_layer, 
 					stopifnull=TRUE, stopifinvalid=TRUE)
-        if (is.null(COND_DWM_CALC)) {
-          message("the COND_DWM_CALC is invalid")
-        } else {
+        if (!is.null(COND_DWM_CALC)) {
           dwmnm <- "COND_DWM_CALC"
           names(COND_DWM_CALC) <- toupper(names(COND_DWM_CALC))
           dwmflds <- names(COND_DWM_CALC)
@@ -3307,29 +3761,30 @@ DBgetPlots <- function (states = NULL,
           dwmvars <- "d.*"
         }
         
-        ## Create dfromqry
+        ## Create query for COND_DWM_CALC
         dfromqry <- paste0(pfromqry, " \nJOIN ", SCHEMA., 
 				dwmnm, " d ON (d.PLT_CN = p.", puniqueid, ")")
 
-        ## Create query for DWM
-        dwmqry <- paste("select distinct", dwmvars, 
+        dwm.qry <- paste("select distinct", dwmvars, 
 		                "\nfrom", dfromqry,
 						"\nwhere", paste0(evalFilter.dwm, stateFilters))
 
-        ## Run query for DWM
+	    ## Query SQLite database or R object
         if (datsource == "sqlite") {
-          cond_dwm_calcx <- tryCatch( DBI::dbGetQuery(dbconn, dwmqry),
+          cond_dwm_calcx <- tryCatch( DBI::dbGetQuery(dbconn, dwm.qry),
 			error=function(e) {
                     message("COND_DWM_CALC query is invalid")
                     return(NULL) })
         } else {
-          cond_dwm_calcx <- tryCatch( sqldf::sqldf(dwmqry, stringsAsFactors=FALSE),
+          cond_dwm_calcx <- tryCatch( sqldf::sqldf(dwm.qry, stringsAsFactors=FALSE),
 			error=function(e) {
                     message("COND_DWM_CALC query is invalid")
                     return(NULL) })
         }
-        if (!is.null(cond_dwm_calcx) && nrow(cond_dwm_calcx) != 0) {
-          dbqueries$dwm <- dwmqry
+        if (!is.null(cond_dwm_calcx) && nrow(cond_dwm_calcx) != 0) {		
+	  	  if (!"cond_dwm_calc" %in% names(dbqueries[[state]])) {
+            dbqueries[[state]]$cond_dwm_calc <- dwm.qry
+	      }
 
           cond_dwm_calcx <- setDT(cond_dwm_calcx)
           cond_dwm_calcx[, PLT_CN := as.character(PLT_CN)]
@@ -3338,13 +3793,14 @@ DBgetPlots <- function (states = NULL,
           ## Subset overall filters from condx
           cond_dwm_calcx <- cond_dwm_calcx[paste(PLT_CN, CONDID) %in% pcondID,]
           if (returndata) {
-		  	if ("dwm" %in% names(tabs)) {
-              tabs$dwm <- rbind(tabs$dwm, data.frame(cond_dwm_calcx))
+		  	if ("cond_dwm_calc" %in% names(tabs)) {
+              tabs$cond_dwm_calc <- rbind(tabs$cond_dwm_calc, 
+							data.frame(cond_dwm_calcx))
 	        } else {
-	          tabs$dwm <- data.frame(cond_dwm_calcx)
+	          tabs$cond_dwm_calc <- data.frame(cond_dwm_calcx)
 	        }
- 	        if (!"dwm" %in% names(tabIDs)) {
-              tabIDs$dwm <- "PLT_CN"
+ 	        if (!"cond_dwm_calc" %in% names(tabIDs)) {
+              tabIDs$cond_dwm_calc <- "PLT_CN"
 	        }
           }
           if (savedata) {
@@ -3374,239 +3830,6 @@ DBgetPlots <- function (states = NULL,
 
 
     ##############################################################
-    ## Area Change Matrix (SUBP_COND_CHNG_MTRX)
-    ##############################################################
-    if (ischng && !is.null(pltx)) {
-      message("\n",
-      "## STATUS: Getting change data from SUBP_COND_CHNG_MTRX (", stabbr, ") ...", "\n")
-
-      ## ssmx data
-      ############################################
-      if (datsource == "sqlite") {
-        sccmnm <- chkdbtab(dbtablst, sccm_layer)
-        if (is.null(sccmnm)) {
-          message("there is no subp_cond_chng_mtrx table in database")
-          islulc=isgrm <- FALSE
-        } else {
-          ## Get SUBP_COND_CHNG_MTRX fields
-          sccmflds <- DBI::dbListFields(dbconn, sccmnm)
-        }
-      } else if (datsource == "datamart") {
-        SUBP_COND_CHNG_MTRX <- DBgetCSV("SUBP_COND_CHNG_MTRX", stabbr, 
-		      returnDT=TRUE, stopifnull=FALSE)
-        if (is.null(SUBP_COND_CHNG_MTRX)) {
-          message("there is no SUBP_COND_CHNG_MTRX table in datamart")
-        } else {
-          sccmnm <- "SUBP_COND_CHNG_MTRX"
-          sccmflds <- names(SUBP_COND_CHNG_MTRX)
-        }
-      } else if (datsource %in% c("csv", "obj")) {
-        SUBP_COND_CHNG_MTRX <- pcheck.table(sccm_layer, 
-					stopifnull=TRUE, stopifinvalid=TRUE)
-        if (is.null(SUBP_COND_CHNG_MTRX)) {
-          message("the SUBP_COND_CHNG_MTRX is invalic")
-        } else {
-          sccmnm <- "SUBP_COND_CHNG_MTRX"
-          names(SUBP_COND_CHNG_MTRX) <- toupper(names(SUBP_COND_CHNG_MTRX))
-          sccmflds <- names(SUBP_COND_CHNG_MTRX)
-        }
-      }
-
-      if (is.null(sccmnm)) {
-        sccmx <- NULL
-        ischng=islulc <- FALSE
-
-      } else {
-        ## SUBP_COND_CHNG_MTRX table
-        sccmvarlst <- c("PLT_CN", "PREV_PLT_CN", "SUBP", "SUBPTYP",
-                         "CONDID", "PREVCOND", "SUBPTYP_PROP_CHNG")
-
-        ## Check variables in database
-        if (defaultVars) {
-          sccmvarlst <- sccmvarlst[sccmvarlst %in% sccmflds]
-
-          ## Add commas
-          sccmvars <- toString(paste0("sccm.", sccmvarlst))
-        } else {
-          sccmvars <- "sccm.*"
-        }
-
-        ## Create sccm from queries
-        sccmfromqry <- paste0(pfromqry, " \nJOIN ", SCHEMA., 
-				sccmnm, " sccm ON sccm.PLT_CN = p.", puniqueid)
-        pchgfromqry <- paste0(pfromqry, 
-		" \nJOIN ", SCHEMA., plot_layer, " pplot ON (pplot.", puniqueid, " = p.PREV_PLT_CN)")		
-        chgfromqry <- paste0(pcfromqry,
-		" \nJOIN ", SCHEMA., cond_layer, " pcond ON (pcond.PLT_CN = p.PREV_PLT_CN)")
-
-        sccmqry <- paste("select distinct", toString(paste0("sccm.", sccmvars)), 
-		                  " \nfrom", sccmfromqry, 
-                          " \nwhere", paste0(evalFilter.grm, stateFilters))
-
-        if (datsource == "sqlite") {
-          sccmx <- tryCatch( setDT(DBI::dbGetQuery(dbconn, sccmqry)),
-			error=function(e) {
-                    message("SUBP_COND_CHNG_MTRX query is invalid")
-                    return(NULL) })
-        } else {
-          sccmx <- tryCatch( setDT(sqldf::sqldf(sccmqry, stringsAsFactors=FALSE)),
-			error=function(e) {
-                    message("SUBP_COND_CHNG_MTRX query is invalid")
-                    return(NULL) })
-        }
-
-        if (!is.null(sccmx) && nrow(sccmx) != 0) {
-          dbqueries$sccm <- sccmqry
-
-          sccmx <- setDT(sccmx)
-          sccmx[, PLT_CN := as.character(PLT_CN)]
-          setkey(sccmx, PLT_CN, CONDID)
-
-          ## Subset overall filters from condx
-          sccmx <- sccmx[paste(sccmx$PLT_CN, sccmx$CONDID) %in% pcondID,]
-
-          if (returndata) {
-		  	if ("sccm" %in% names(tabs)) {
-              tabs$sccm <- rbind(tabs$sccm, data.frame(sccmx))
-	        } else {
-	          tabs$sccm <- data.frame(sccmx)
-	        }
- 	        if (!"sccm" %in% names(tabIDs)) {
-              tabIDs$sccm <- "PLT_CN"
-	        }
-          }
-          if (savedata) {
-            index.unique.sccmx <- NULL
-            if (!append_layer) index.unique.sccmx <- c("PLT_CN", "CONDID")
-              datExportData(sccmx, 
-                  index.unique = index.unique.sccmx,
-                  savedata_opts = list(outfolder=outfolder, 
-                                out_fmt=out_fmt, 
-                                out_dsn=out_dsn, 
-                                out_layer="sccm",
-                                outfn.pre=outfn.pre, 
-                                overwrite_layer=overwrite_layer,
-                                append_layer=append_layer,
-                                outfn.date=outfn.date, 
-                                add_layer=TRUE)) 
-            rm(sccmx)
-            # gc() 
-          } 
-        }
-        if (datsource == "datamart") {
-          if (exists("SUBP_COND_CHNG_MTRX")) rm(SUBP_COND_CHNG_MTRX)
-          # gc()
-        }
-      }
-    }
-
-    ##############################################################
-    ## Tree Change, Growth, and Mortality (TREE_GRM_COMPONENT)
-    ##############################################################
-    if (isgrm && !is.null(pltx)) {
-      message("\n",
-      "## STATUS: Getting GRM data from TREE_GRM_COMPONENT (", stabbr, ") ...", "\n")
-    
-      ## GRM data
-      if (datsource == "sqlite") {
-        grmnm <- chkdbtab(dbtablst, grm_layer)
-        if (is.null(grmnm)) {
-          message("there is no TREE_GRM_COMPONENT table in database")
-          isgrm <- FALSE
-        } else {
-          ## Get TREE_GRM_COMPONENT fields
-          grmflds <- DBI::dbListFields(dbconn, grmnm)
-        }
-      } else if (datsource == "datamart") {
-        TREE_GRM_COMPONENT <- DBgetCSV("TREE_GRM_COMPONENT", stabbr, 
-		      returnDT=TRUE, stopifnull=FALSE)
-        if (!is.null(TREE_GRM_COMPONENT)) {
-          grmnm <- "TREE_GRM_COMPONENT"
-          grmflds <- names(TREE_GRM_COMPONENT)
-        }
-      } else if (datsource %in% c("csv", "obj")) {
-        TREE_GRM_COMPONENT <- pcheck.table(grm_layer, 
-					stopifnull=TRUE, stopifinvalid=TRUE)
-        if (!is.null(TREE_GRM_COMPONENT)) {
-          grmnm <- "TREE_GRM_COMPONENT"
-          names(TREE_GRM_COMPONENT) <- toupper(names(TREE_GRM_COMPONENT))
-          grmflds <- names(TREE_GRM_COMPONENT)
-        }
-      }
-
-      if (is.null(grmnm)) {
-        grmx <- NULL
-        #isgrm <- NULL
-      } else {
-
-        ## Create grmfromqry
-        grmfromqry <- paste0(pfromqry, " JOIN ", SCHEMA.,
-				grmnm, " grm ON (grm.PLT_CN = p.", puniqueid, ")")
-
-        ## Create grm query
-        ########################################
-        grmqry <- paste("select distinct grm.* \nfrom", grmfromqry, 
-		                "\nwhere", paste0(evalFilter.grm, stateFilters))
-
-        if (datsource == "sqlite") {
-          grmx <- tryCatch( DBI::dbGetQuery(dbconn, grmqry),
-			error=function(e) {
-                    message("TREE_GRM_COMPONENT query is invalid")
-                    return(NULL) })
-
-        } else {
-          grmx <- tryCatch( sqldf::sqldf(grmqry, stringsAsFactors=FALSE),
-			error=function(e) {
-                    message("TREE_GRM_COMPONENT query is invalid")
-                    return(NULL) })
-        }
-        if (!is.null(grmx) && nrow(grmx) != 0) {
-          dbqueries$grm <- grmqry
-
-          grmx <- setDT(grmx)
-          grmx[, PLT_CN := as.character(PLT_CN)]
-          setkey(grmx, PLT_CN)
-
-          ## Subset overall filters from condx
-          #grmx <- grmx[paste(grmx$PLT_CN, grmx$CONDID) %in% pcondID,]
-          grmx <- grmx[grmx$PLT_CN %in% pltx$CN,]
-
-          if (returndata) {
-		  	if ("grm" %in% names(tabs)) {
-              tabs$grm <- rbind(tabs$grm, data.frame(grmx))
-	        } else {
-	          tabs$grm <- data.frame(grmx)
-	        }
- 	        if (!"grm" %in% names(tabIDs)) {
-              tabIDs$grm <- "PLT_CN"
-	        }
-          }
-          if (savedata) {
-            index.unique.grmx <- NULL
-            if (!append_layer) index.unique.grmx <- c("PLT_CN", "CONDID")
-            datExportData(grmx, 
-                index.unique = index.unique.grmx,
-                savedata_opts = list(outfolder=outfolder, 
-                                out_fmt=out_fmt, 
-                                out_dsn=out_dsn, 
-                                out_layer="tree_grm_component",
-                                outfn.pre=outfn.pre, 
-                                overwrite_layer=overwrite_layer,
-                                append_layer=append_layer,
-                                outfn.date=outfn.date, 
-                                add_layer=TRUE))
-            rm(grmx)
-            # gc()  
-          } 
-        }
-      }
-      if (datsource == "datamart") {
-        if (exists("TREE_GRM_COMPONENT")) rm(TREE_GRM_COMPONENT)
-        # gc()
-      }
-    }
- 
-    ##############################################################
     ## Other tables
     ##############################################################
     if (!is.null(othertables) && length(othertables2) > 0 && !is.null(pltx)) {
@@ -3620,7 +3843,6 @@ DBgetPlots <- function (states = NULL,
           if (datsource == "sqlite") {
             othertabnm <- chkdbtab(dbtablst, othertable)
             if (is.null(othertabnm)) {
-              message(othertable, " does not exist in database")
               othertables <- othertables[othertables != othertable]
             }
           } else if (datsource == "datamart") {
@@ -4012,6 +4234,21 @@ DBgetPlots <- function (states = NULL,
   } ## end loop for states
   close(pb)
 
+  if (savedata) {
+    message("saving ref_species...")
+
+    datExportData(ref_species, 
+        savedata_opts=list(outfolder = outfolder, 
+                           out_fmt = out_fmt, 
+                           out_dsn = out_dsn, 
+                           out_layer = "ref_species",
+                           outfn.pre = outfn.pre, 
+                           overwrite_layer = overwrite_layer,
+                           append_layer = append_layer,
+                           outfn.date = outfn.date, 
+                           add_layer = TRUE)) 
+  }
+ 
   if (savedata && saveSURVEY) {
     message("saving survey table...")
 
@@ -4102,6 +4339,7 @@ DBgetPlots <- function (states = NULL,
     names(evaliddf) <- c("STATECD", "STATE", "EVALID")
     evaliddf <- evaliddf[order(evaliddf$STATECD), ]
     returnlst$evalid <- evalidlist
+	returnlst$ref_species <- ref_species
 
 #    if (savedata) {
 #      append_layer2 <- ifelse(overwrite, FALSE, append_layer)
