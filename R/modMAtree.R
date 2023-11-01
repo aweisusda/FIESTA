@@ -51,10 +51,6 @@
 #' syntax (e.g., 'STATUSCD == 1').
 #' @param estseed String. Use seedling data only or add to tree data. Seedling
 #' estimates are only for counts (estvar='TPA_UNADJ')-('none', 'only', 'add').
-#' @param woodland String. If woodland = 'Y', include woodland tree species  
-#' where measured. If woodland = 'N', only include timber species. See 
-#' FIESTA::ref_species$WOODLAND ='Y/N'. If woodland = 'only', only include
-#' woodland species.
 #' @param landarea String. The condition-level filter for defining land area
 #' ('ALL', 'FOREST', 'TIMBERLAND'). If landarea='FOREST', COND_STATUS_CD = 1;
 #' if landarea='TIMBERLAND', SITECLCD in(1:6) & RESERVCD = 0.
@@ -69,9 +65,7 @@
 #' an input data frame (i.e., plt, cond, tree).
 #' @param prednames String vector. Name(s) of predictor variables to include in
 #' model.
-#' @param modelselect Logical. If TRUE, an elastic net regression model is fit 
-#' to the entire plot level data, and the variables selected in that model are 
-#' used for the proceeding estimation.
+#' @param modelselect Logical. If TRUE, variable selection occurs. 
 #' @param FIA Logical. If TRUE, the finite population term is removed from
 #' estimator to match FIA estimates.
 #' @param bootstrap Logical. If TRUE, returns bootstrap variance estimates,
@@ -86,9 +80,6 @@
 #' @param savedata_opts List. See help(savedata_options()) for a list
 #' of options. Only used when savedata = TRUE.  
 #' @param gui Logical. If gui, user is prompted for parameters.
-#' @param modelselect_bydomain Logical. If TRUE, modelselection will occur at 
-#' the domain level as specified by rowvar and/or colvar and not at the level of
-#' the entire sample.
 #' @param ...  Parameters for modMApop() if MApopdat is NULL.
 #' @return If FIA=TRUE or unitvar=NULL and colvar=NULL, one data frame is
 #' returned with tree estimates and percent sample errors. Otherwise, a list is
@@ -279,7 +270,6 @@ modMAtree <- function(MApopdat,
                       estvar, 
                       estvar.filter = NULL, 
                       estseed = "none", 
-					  woodland = "Y",
                       landarea = "FOREST", 
                       pcfilter = NULL, 
                       rowvar = NULL, 
@@ -294,7 +284,6 @@ modMAtree <- function(MApopdat,
                       title_opts = NULL, 
                       savedata_opts = NULL, 
                       gui = FALSE, 
-                      modelselect_bydomain = FALSE,
                       ...){
 
   ########################################################################################
@@ -492,9 +481,8 @@ modMAtree <- function(MApopdat,
   ###################################################################################
   estdat <- check.estdata(esttype=esttype, pltcondf=pltcondx, 
                 cuniqueid=cuniqueid, condid=condid, treex=treex, seedx=seedx, 
-                estseed=estseed, woodland=woodland, 
-				sumunits=sumunits, landarea=landarea, 
-				ACI.filter=ACI.filter, pcfilter=pcfilter, allin1=allin1, 
+                estseed=estseed, sumunits=sumunits, landarea=landarea, 
+                ACI.filter=ACI.filter, pcfilter=pcfilter, allin1=allin1, 
                 estround=estround, pseround=pseround, divideby=divideby, 
                 addtitle=addtitle, returntitle=returntitle, 
                 rawdata=rawdata, rawonly=rawonly, savedata=savedata, 
@@ -509,7 +497,6 @@ modMAtree <- function(MApopdat,
   seedf <- estdat$seedf
   tuniqueid <- estdat$tuniqueid
   estseed <- estdat$estseed
-  woodland <- estdat$woodland
   sumunits <- estdat$sumunits
   landarea <- estdat$landarea
   allin1 <- estdat$allin1
@@ -585,7 +572,7 @@ modMAtree <- function(MApopdat,
                   tuniqueid=tuniqueid, cuniqueid=cuniqueid, 
                   esttype=esttype, estvarn=estvar, estvarn.filter=estvar.filter, 
                   esttotn=TRUE, tdomvar=tdomvar, tdomvar2=tdomvar2, 
-                  adjtree=adjtree, metric=metric, woodland=woodland)
+                  adjtree=adjtree, metric=metric)
   if (is.null(treedat)) return(NULL)
   tdomdat <- treedat$tdomdat
 
@@ -658,39 +645,6 @@ modMAtree <- function(MApopdat,
 	ifelse(MAmethod == "gregEN", "gregElasticNet", 
 	ifelse(MAmethod == "ratio", "ratioEstimator", "horvitzThompson"))))
   message("generating estimates using mase::", masemethod, " function...\n")
-  
-  if (MAmethod == "greg" && modelselect == T) {
-    
-    # want to do variable selection on plot level data...
-    pltlvl <- tdomdat[ , lapply(.SD, sum, na.rm = TRUE), 
-                       by=c(unitvar, cuniqueid, "TOTAL", strvar, prednames),
-                       .SDcols=response]
-    
-    y <- pltlvl[[response]]
-    xsample <- pltlvl[ , prednames, with = F, drop = F]
-    xpop <- unitlut[ , prednames, with = F, drop = F]
-    N <- sum(npixels[["npixels"]])
-    
-    preds.selected <- gregEN.select(y = y,
-                                    x_sample = xsample,
-                                    x_pop = xpop,
-                                    N = N,
-                                    alpha = 0.5)
-    
-    if (length(preds.selected) == 0 || is.null(preds.selected)) {
-      
-      warning("No variables selected in model selection, proceeding with all possible predictors. \n")
-      
-    } else {
-      
-      prednames <- preds.selected 
-      message(paste0("Predictors ", "[", paste0(prednames, collapse = ", "), "]", " were chosen in model selection.\n"))
-      
-    }
-    
-    
-  }
-  
   if (!MAmethod %in% c("HT", "PS")) {
     message("using the following predictors...", toString(prednames))
   }
@@ -716,7 +670,7 @@ modMAtree <- function(MApopdat,
                         unitlut=unitlut, unitvar=unitvar, esttype=esttype, 
                         MAmethod=MAmethod, strvar=strvar, prednames=prednames, 
                         domain="TOTAL", response=response, npixels=npixels, 
-                        FIA=FIA, modelselect=modelselect_bydomain, getweights=getweights,
+                        FIA=FIA, modelselect=modelselect, getweights=getweights,
                         var_method=var_method)
     unit_totest <- do.call(rbind, sapply(unit_totestlst, '[', "unitest"))
     unit_weights <- do.call(rbind, sapply(unit_totestlst, '[', "weights")) 
@@ -745,7 +699,7 @@ modMAtree <- function(MApopdat,
                         unitlut=unitlut, unitvar=unitvar, esttype=esttype, 
                         MAmethod=MAmethod, strvar=strvar, prednames=prednames, 
                         domain=rowvar, response=response, npixels=npixels, 
-                        FIA=FIA, modelselect=modelselect_bydomain, getweights=getweights,
+                        FIA=FIA, modelselect=modelselect, getweights=getweights,
                         var_method=var_method)
     unit_rowest <- do.call(rbind, sapply(unit_rowestlst, '[', "unitest"))
     if (MAmethod %in% c("greg", "gregEN")) {
@@ -760,7 +714,7 @@ modMAtree <- function(MApopdat,
                             unitlut=unitlut, unitvar=unitvar, esttype=esttype, 
                             MAmethod=MAmethod, strvar=strvar, prednames=prednames, 
                             domain=colvar, response=response, npixels=npixels, 
-                            FIA=FIA, modelselect=modelselect_bydomain, var_method=var_method)
+                            FIA=FIA, modelselect=modelselect, var_method=var_method)
       unit_colest <- do.call(rbind, sapply(unit_colestlst, '[', "unitest"))
       if (MAmethod %in% c("greg", "gregEN")) {
         predselectlst$colest <- do.call(rbind, sapply(unit_colestlst, '[', "predselect"))
@@ -775,7 +729,7 @@ modMAtree <- function(MApopdat,
                                unitlut=unitlut, unitvar=unitvar, esttype=esttype, 
                                MAmethod=MAmethod, strvar=strvar, prednames=prednames, 
                                domain="grpvar", response=response, npixels=npixels, 
-                               FIA=FIA, modelselect=modelselect_bydomain, var_method=var_method)
+                               FIA=FIA, modelselect=modelselect, var_method=var_method)
       unit_grpest <- do.call(rbind, sapply(unit_grpestlst, '[', "unitest"))
       if (MAmethod %in% c("greg", "gregEN")) {
         predselectlst$grpest <- do.call(rbind, sapply(unit_grpestlst, '[', "predselect"))

@@ -458,12 +458,6 @@ DBgetEvalid <- function(states = NULL,
     evalidnm <- findnm("EVALID", names(POP_EVAL))
 
     ## Check if evalid is valid
-	if (!all(evalid %in% POP_EVAL$EVALID)) {
-	  etypcd <- substr(evalid, nchar(evalid)-1, nchar(evalid))
-	  if (any(etypcd == "06")) {
-	    evalid <- sub("06", "03", evalid)
-	  }
-	}
     if (!all(evalid %in% POP_EVAL[[evalidnm]])) {
       notin <- evalid[!evalid %in% POP_EVAL[[evalidnm]]]
       stop("invalid EVALID: ", toString(notin))
@@ -492,7 +486,7 @@ DBgetEvalid <- function(states = NULL,
           } else {
             poptyp <- unique(pop_eval$EVAL_TYP)
           }
-          evalTypelist[[state]] <- sub("EXP", "", unique(c(evalTypelist[[state]], poptyp))[1])
+          evalTypelist[[state]] <- unique(c(evalTypelist[[state]], poptyp))
           evalEndyrlist[[state]] <- endyr
           if (state %in% names(invyrs)) {
             invyrs[[state]] <- sort(unique(c(invyrs[[state]], stinvyr)))
@@ -920,7 +914,8 @@ DBgetEvalid <- function(states = NULL,
                 returnlst <- list(states=states, rslst=rslst,
                 		evalidlist=evalidlist,
                 		invtype=invtype, invyrtab=invyrtab,
-                		invyrs=invyrs, evalType=evalTypelist)		  
+                		invyrs=invyrs, evalType=evalTypelist,
+                		FS_FIADB=FS_FIADB)		  
 		      }
 	          popevalgrptab <- POP_EVAL_GRPstcd
 	        }
