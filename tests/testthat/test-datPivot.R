@@ -32,6 +32,7 @@ test_that("datPivot Testing", {
     expect_equal(test2_subset, input2)
     expect_equal(dim(test1), c(10,4))
     expect_snapshot(test1)
+    expect_snapshot(test2)
 })
 
 
