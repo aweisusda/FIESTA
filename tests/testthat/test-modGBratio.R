@@ -47,11 +47,11 @@ test_that("modGBratio Testing", {
   
   modGBratio_est_names <- list(c("Rocky Mountain juniper", "Juniper woodland", "Pinyon / juniper woodland", "Douglas-fir", "Ponderosa pine", "Engelmann spruce", "Engelmann spruce / subalpine fir", "Subalpine fir", "Blue spruce", "Lodgepole pine", "Limber pine", "Whitebark pine", "Bur oak", "Elm / ash / black locust", "Cottonwood", "Sugarberry / hackberry / elm / green ash", "Aspen", "Nonstocked", "Total"))
   
-  expect_equal(list(modGBratio_VOL_est$`Forest type`), modGBratio_est_names)
-  expect_equal(dim(modGBratio_VOL$est), c(19,3))
+  expect_equal(list(modGBratio_VOL_est$`Forest type`), modGBratio_est_names) ##Ensuring names are consistant
+  expect_equal(dim(modGBratio_VOL$est), c(19,3)) ##Ensuring consistant dimensionality among outputs
   expect_equal(dim(modGBratio_TPA$est), c(19,3))
   expect_equal(dim(modGBratio_BA$est), c(19,3))
-  expect_snapshot(modGBratio_VOL_est)
+  expect_snapshot(modGBratio_VOL_est) ##Outputting snapshot for each output
   expect_snapshot(modGBratio_TPA_est)
   expect_snapshot(modGBratio_BA_est)
     

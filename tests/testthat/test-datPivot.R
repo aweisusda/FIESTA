@@ -31,9 +31,9 @@ test_that("datPivot Testing", {
     input2 <- sum(input1[input1$SPCD == 113 & input1$STATUSCD == 1, "VOLCFNET"])
     input3_final <- formatC(input2)
     
-    expect_equal(test2_subset_char, input3_final)
-    expect_equal(dim(test1), c(10,4))
-    expect_snapshot(test1)
+    expect_equal(test2_subset_char, input3_final) ##expecting Tracys example code aligns with WYtree data
+    expect_equal(dim(test1), c(10,4)) ##testing dimensions of output
+    expect_snapshot(test1) ##Capturing snapshot
 })
 
 
