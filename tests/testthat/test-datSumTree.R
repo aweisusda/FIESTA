@@ -43,10 +43,3 @@ test_that("datSumTree Aboveground Biomass w/out Extrapolation", {
   expect_equal(output1, treedat_TPA[treedat_TPA$PLT_CN == CN, ][[2]])
   expect_snapshot(treedat_TPA)
 })
-
-
-
-
-
-
-
