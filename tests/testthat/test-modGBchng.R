@@ -14,7 +14,3 @@ test_that("modGBchng Testing", {
                         landarea = "FOREST",
                         rowvar = "FORTYPCD")
 })
-
-
-
-
