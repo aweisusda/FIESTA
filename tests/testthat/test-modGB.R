@@ -81,19 +81,6 @@ test_that("modGBpop & modGBarea Testing", {
 })
 
 
-
-devtools::test()
-
-
-
-
-
-
-
-
-
-
-
 ## - TESTING - modGBratio
 ## - Generates per-acre and per-tree estimates by domain
 GBratio <- modGBratio(GBpop, 
@@ -109,10 +96,6 @@ names(GBratio$raw)
 gbRatio_df <- as.data.frame(GBratio$raw$unit_rowest)       ## By estimation unit
 head(GBratio$raw$rowest)            ## For total population
 })
-
-
-
-
 
 
 

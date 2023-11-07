@@ -40,4 +40,8 @@ library(devtools)
     datBA_varlut <- treedomBA$tdomvarlut
     
     datVOL_varlut <- treedomVOL$tdomvarlut
+
+    expect_snapshot(datBA_varlut)
+    expect_snapshot(datVOL_varlut)
 })
+
