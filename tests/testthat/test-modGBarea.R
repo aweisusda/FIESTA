@@ -39,8 +39,8 @@ test_that("modGBarea Testing", {
                                 "Cottonwood", "Sugarberry / hackberry / elm / green ash", 
                                 "Aspen", "Nonstocked", "Total"))
 
-  expect_equal(GBarea$est[1, 2], area.raw_char)
-  expect_equal(list(modGBarea_est$`Forest type`), modGBarea_est_names)
-  expect_equal(dim(modGBarea_est), c(19, 3))
-  expect_snapshot(modGBarea_est)
+  expect_equal(GBarea$est[1, 2], area.raw_char) ##Converted numeric value to character and tested for correct value 
+  expect_equal(list(modGBarea_est$`Forest type`), modGBarea_est_names) ##ensuring tree list is correct
+  expect_equal(dim(modGBarea_est), c(19 , 3)) ##Ensuring dimensionality is consistant
+  expect_snapshot(modGBarea_est) ##outputting snapshot
 })

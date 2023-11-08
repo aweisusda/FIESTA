@@ -62,11 +62,11 @@ test_that("modGBtree Testing", {
                                     "Nonstocked",
                                     "Total"))
 
-  expect_equal(list(modGBtree_TPA_est$`Forest type`), modGBtree_TPA_est_names)
-  expect_equal(dim(modGBtree_TPA_est) , c(19, 3))
-  expect_equal(dim(modGBtree_VOL_est) , c(19, 3))
-  expect_equal(dim(modGBtree_BA_est) , c(19, 3))
-  expect_snapshot(modGBtree_TPA_est)
-  expect_snapshot(modGBtree_VOL_est)
-  expect_snapshot(modGBtree_BA_est)
+  expect_equal(list(modGBtree_TPA_est$`Forest type`), modGBtree_TPA_est_names) ##ensuring tree names are consistant across output
+  expect_equal(dim(modGBtree_TPA_est) , c(19, 3)) ##ensuring dimension of modGB_TPA is correct
+  expect_equal(dim(modGBtree_VOL_est) , c(19, 3)) ##ensuring dimension of modGB VOL is correct
+  expect_equal(dim(modGBtree_BA_est) , c(19, 3)) ##ensuring dimensions of modGB BA is correct
+  expect_snapshot(modGBtree_TPA_est) ##Outputting snapshot
+  expect_snapshot(modGBtree_VOL_est) ##Outputting snapshot
+  expect_snapshot(modGBtree_BA_est) ##Outputting snapshot
 })

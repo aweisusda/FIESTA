@@ -35,8 +35,17 @@ test_that("datSumTree Aboveground Biomass w/out Extrapolation", {
   CN <- 40404730010690
   treedat_TPA[treedat_TPA$PLT_CN == CN, ] [[2]]
   input1 <- WYtree[WYtree$PLT_CN == CN & WYtree$STATUSCD == 1, ]
-
+  
   output1 <- with(input1, sum(DRYBIO_AG * TPA_UNADJ, na.rm=TRUE))
+
+##Expecting same output when summed for TPA
   expect_equal(output1, treedat_TPA[treedat_TPA$PLT_CN == CN, ][[2]])
   expect_snapshot(treedat_TPA)
 })
+
+
+
+
+
+
+
