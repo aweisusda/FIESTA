@@ -3,8 +3,8 @@ test_that("Clip Point returns expected number of points", {
 
   # Set up
   WYbhfn <- system.file("extdata",
-                      "sp_data/WYbighorn_adminbnd.shp",
-                      package = "FIESTA")
+                        "sp_data/WYbighorn_adminbnd.shp",
+                        package = "FIESTA")
 
   WYbh <- spImportSpatial(WYbhfn)
 

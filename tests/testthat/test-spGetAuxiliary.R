@@ -46,19 +46,19 @@ test_that("Get Auxiliary creates consistent output", {
   rastlst.cat.name <- "fornf"
 
   modeldat <- suppressWarnings(spGetAuxiliary(xyplt = WYspplt,
-                              uniqueid = "CN",
-                              unit_layer = WYbhfn,
-                              unitvar = NULL,
-                              rastlst.cont = rastlst.cont,
-                              rastlst.cont.name = rastlst.cont.name,
-                              rastlst.cat = rastlst.cat,
-                              rastlst.cat.name = rastlst.cat.name,
-                              rastlst.cont.stat = "mean",
-                              asptransform = TRUE,
-                              rast.asp = asp,
-                              keepNA = FALSE,
-                              showext = FALSE,
-                              savedata = FALSE))
+                                              uniqueid = "CN",
+                                              unit_layer = WYbhfn,
+                                              unitvar = NULL,
+                                              rastlst.cont = rastlst.cont,
+                                              rastlst.cont.name = rastlst.cont.name,
+                                              rastlst.cat = rastlst.cat,
+                                              rastlst.cat.name = rastlst.cat.name,
+                                              rastlst.cont.stat = "mean",
+                                              asptransform = TRUE,
+                                              rast.asp = asp,
+                                              keepNA = FALSE,
+                                              showext = FALSE,
+                                              savedata = FALSE))
 
   pltassgn <- modeldat$pltassgn
   unitzonal <- modeldat$unitzonal

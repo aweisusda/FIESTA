@@ -4,8 +4,8 @@ test_that("Reproject Raster file works", {
 
   # Set Up Data
   fornffn <- system.file("extdata",
-                       "sp_data/WYbighorn_forest_nonforest_250m.tif",
-                       package = "FIESTA")
+                         "sp_data/WYbighorn_forest_nonforest_250m.tif",
+                         package = "FIESTA")
 
   # Reproject Raster
   new_prj <- "+proj=utm +zone=12 +ellps=GRS80 +datum=NAD83 +units=m +no_defs"

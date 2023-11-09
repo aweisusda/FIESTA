@@ -8,9 +8,9 @@ test_that("multiplication works", {
                         package = "FIESTA")
 
   # Run spGetPlots and expect snapshots
-  WYbhdat <- spGetPlots(bnd = WYbhfn, 
+  WYbhdat <- spGetPlots(bnd = WYbhfn,
                         states = "Wyoming",
-                        datsource = "datamart", 
+                        datsource = "datamart",
                         eval = "FIA",
                         eval_opts = eval_options(Cur = TRUE),
                         istree = FALSE)

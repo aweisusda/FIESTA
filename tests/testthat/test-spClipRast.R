@@ -4,12 +4,12 @@ test_that("Clip Raster Works", {
   # Set Up
 
   fornffn <- system.file("extdata",
-                       "sp_data/WYbighorn_forest_nonforest_250m.tif",
-                       package = "FIESTA")
+                         "sp_data/WYbighorn_forest_nonforest_250m.tif",
+                         package = "FIESTA")
 
   WYbhdistfn <- system.file("extdata",
-                          "sp_data/WYbighorn_districtbnd.shp",
-                          package = "FIESTA")
+                            "sp_data/WYbighorn_districtbnd.shp",
+                            package = "FIESTA")
 
   WYbhdist <- spImportSpatial(WYbhdistfn)
 

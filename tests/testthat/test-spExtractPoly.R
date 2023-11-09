@@ -2,28 +2,27 @@
 test_that("Extract Polygon Attributes works", {
   
   # Set Up Data
-  WYspplt <- spMakeSpatialPoints(xyplt = WYplt, 
-                               xy.uniqueid = "CN", 
-                               xvar = "LON_PUBLIC", 
-                               yvar = "LAT_PUBLIC", 
-                               xy.crs = 4269
-                               )
+  WYspplt <- spMakeSpatialPoints(xyplt = WYplt,
+                                 xy.uniqueid = "CN",
+                                 xvar = "LON_PUBLIC",
+                                 yvar = "LAT_PUBLIC",
+                                 xy.crs = 4269)
 
   WYbhdistfn <- system.file("extdata",
-                          "sp_data/WYbighorn_districtbnd.shp",
-                          package = "FIESTA")
+                            "sp_data/WYbighorn_districtbnd.shp",
+                            package = "FIESTA")
 
   WYbhdist <- spImportSpatial(WYbhdistfn)
 
   # Test Extract Provides warning if Null Values
   expect_warning(spExtractPoly(WYspplt,
-                                xy.uniqueid = "CN",
-                                polyvlst = WYbhdist))
+                               xy.uniqueid = "CN",
+                               polyvlst = WYbhdist))
 
   # Test if plots have expected number of columns after extract (19->23)
   extpolylst <- suppressWarnings(spExtractPoly(WYspplt,
-                                 xy.uniqueid = "CN",
-                                 polyvlst = WYbhdist))
+                                               xy.uniqueid = "CN",
+                                               polyvlst = WYbhdist))
 
   ext_plts <- extpolylst$spxyext
   exp_names <- 23
@@ -37,7 +36,7 @@ test_that("Extract Polygon Attributes works", {
                                                 xy.uniqueid = "CN",
                                                 polyvlst = WYbhdist,
                                                 polyvarlst = c("FORESTNUMB",
-                                                              "FORESTNAME"),
+                                                               "FORESTNAME"),
                                                 keepNA = FALSE))
 
   ext_plts2 <- extpolylst2$spxyext
