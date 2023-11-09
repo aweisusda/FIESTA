@@ -2,17 +2,17 @@
 test_that("Clip polygon works as expected", {
 
   # Setup data 
-  USAco <- geodata::gadm(country = "USA", level = 2, path=tempdir())    
+  USAco <- geodata::gadm(country = "USA", level = 2, path = tempdir())
   WYco <- USAco[USAco$NAME_1 == "Wyoming"]
 
   WYbhfn <- system.file("extdata",
-                      "sp_data/WYbighorn_adminbnd.shp",
-                      package = "FIESTA")
+                        "sp_data/WYbighorn_adminbnd.shp",
+                        package = "FIESTA")
 
   WYbh <- spImportSpatial(WYbhfn)
 
   # Test
-  clipped <- spClipPoly(polyv = WYco, clippolyv = WYbh, areacalc=TRUE)
+  clipped <- spClipPoly(polyv = WYco, clippolyv = WYbh, areacalc = TRUE)
 
   # Check Counties
   exp <- c("Big Horn", "Johnson", "Sheridan", "Washakie")
