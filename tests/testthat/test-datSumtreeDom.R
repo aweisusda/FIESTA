@@ -1,7 +1,3 @@
-library(FIESTA)
-library(testthat)
-library(usethis)
-library(devtools)
 
 ##The `datSumTreeDom` function aggregates tree-level data to plot or condition, including options for filtering tree data or extrapolating to plot acre by multiplying by `TPA`.
 
