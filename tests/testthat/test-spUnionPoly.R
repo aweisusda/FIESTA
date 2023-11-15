@@ -1,18 +1,22 @@
 test_that("Union Poly Works and creates expected SF object", {
-  
-  # Set up data
+  # Setup Admin Boundary to Clip
   WYbhfn <- system.file("extdata",
                         "sp_data/WYbighorn_adminbnd.shp",
                         package = "FIESTA")
 
-  USAco <- geodata::gadm(country = "USA", level = 2, path = tempdir())
-  WYco <- USAco[USAco$NAME_1 == "Wyoming"]
-
   WYbh <- spImportSpatial(WYbhfn)
 
-  polyUnion <- suppressWarnings(spUnionPoly(polyv1 = WYco,
-                                            polyv2 = WYbh,
-                                            areacalc = TRUE))
+  # Setup District Boundary and subset to clip by
+  WYbhdistfn <- system.file("extdata",
+                            "sp_data/WYbighorn_districtbnd.shp",
+                            package = "FIESTA")
+
+  WYbhdist <- spImportSpatial(WYbhdistfn)
+  subset_district <- WYbhdist[WYbhdist$DISTRICTNU == "03",]
+
+  polyUnion <- suppressWarnings(spUnionPoly(polyv1 = subset_district,
+                                polyv2 = WYbh,
+                                areacalc = TRUE))
 
   expect_snapshot(polyUnion)
 })

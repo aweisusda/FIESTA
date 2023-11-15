@@ -1,26 +1,33 @@
 
 test_that("Clip polygon works as expected", {
 
-  # Setup data 
-  USAco <- geodata::gadm(country = "USA", level = 2, path = tempdir())
-  WYco <- USAco[USAco$NAME_1 == "Wyoming"]
-
+  # Setup Admin Boundary to Clip
   WYbhfn <- system.file("extdata",
                         "sp_data/WYbighorn_adminbnd.shp",
                         package = "FIESTA")
 
   WYbh <- spImportSpatial(WYbhfn)
 
-  # Test
-  clipped <- spClipPoly(polyv = WYco, clippolyv = WYbh, areacalc = TRUE)
+  # Setup District Boundary and subset to clip by
+  WYbhdistfn <- system.file("extdata",
+                            "sp_data/WYbighorn_districtbnd.shp",
+                            package = "FIESTA")
 
-  # Check Counties
-  exp <- c("Big Horn", "Johnson", "Sheridan", "Washakie")
-  clipped_counties <- clipped$NAME_2
-  expect_equal(clipped_counties, exp)
+  WYbhdist <- spImportSpatial(WYbhdistfn)
 
-  #Check Calculated Area
-  exp_acrs <- 1112356
-  clipped_acres <- sum(round(clipped$ACRES_GIS))
+  subset_district <- WYbhdist[WYbhdist$DISTRICTNU == "01",]
+
+  # Run Clipped Function
+  clipped <- spClipPoly(polyv = WYbh, clippolyv = subset_district, areacalc = TRUE)
+
+  # Check Original Acres
+  # (If this changes than the expected clip may not be accurate)
+  exp_original_acres <- 1112790
+  original_acres <- round(WYbh$GIS_ACRES)
+  expect_equal(original_acres, exp_original_acres)
+
+  # Check Calculated Area
+  exp_acrs <- 334252
+  clipped_acres <- round(clipped$ACRES_GIS)
   expect_equal(clipped_acres, exp_acrs)
 })

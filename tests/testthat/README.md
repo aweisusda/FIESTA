@@ -66,8 +66,8 @@ Provided is a description of all the tests being run in the FIESTA test suite
 - Tests that the clipped number of features matches the expected number of features
 
 ### test-spClipPoly
-- Tests that the clipped polygon contains the correct county names
-- Tests that the clipped acres matches the expected acres
+- Tests that the original acres of the Bighorn National Forest Admin boundary shapefile are still as expected
+- Tests that the Bighorn National Forest Admin boundary clipped to a specific district matches the expected acres
 
 ### test-spClipRast
 - Tests that the clipped raster x size matches the expected x size
@@ -112,7 +112,7 @@ of statalut with stratatype of "RASTER" using the Bighorn Nation Forest (forest/
 
 ### test-spUnionPoly
 - Tests that function provides consistent snapshot
-of the unioned polygon
+of the unioned polygon of a subset Bighorn Nation Forest district and the Bighorn Nation Forest Admin boundary
 
 ### test-spZonalRast
 - Tests that function provides consistent snapshot of zonalext with zonalstat options of mean, sum, npixels, majority using WYbighorn district boundaries and WYbighorn DEM
