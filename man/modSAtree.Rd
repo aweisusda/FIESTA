@@ -10,7 +10,6 @@ modSAtree(
   SApackage = "JoSAE",
   SAmethod = "area",
   estseed = "none",
-  woodland = "Y",
   largebnd.unique = NULL,
   landarea = "FOREST",
   pcfilter = NULL,
@@ -49,11 +48,6 @@ model.}
 
 \item{estseed}{String. Use seedling data only or add to tree data. Seedling
 estimates are only for counts (estvar='TPA_UNADJ')-('none', 'only', 'add').}
-
-\item{woodland}{String. If woodland = 'Y', include woodland tree species
-where measured. If woodland = 'N', only include timber species. See 
-FIESTA::ref_species$WOODLAND ='Y/N'. If woodland = 'only', only include
-woodland species.}
 
 \item{largebnd.unique}{String. Name of the large boundary unique identifer
 to define plots within a model extent. If NULL, all plots are used for model

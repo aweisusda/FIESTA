@@ -127,16 +127,15 @@ DBgetCSV <- function(DBtable,
         }
       )
       if (is.null(tab)) {
-        message(DBtable, " is not available")
+        message(tab, " is not available")
         return(NULL)
       }
 
       filenm <- utils::unzip(temp, exdir=tempdir)
       tab <- fread(filenm, integer64="character")
       if (nrow(tab) == 0) {
-        message(DBtable, " has 0 rows")
-		return(NULL)
-	  }
+        stop("invalid table in datamart")
+      }
       tab <- changeclass(tab)
 
       unlink(temp)

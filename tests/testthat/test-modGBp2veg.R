@@ -10,7 +10,6 @@ test_that("modGBp2veg Testing", {
                     #strvar = "STRATUMCD",
                     #strata = TRUE,
                     #strata_opts = strata_options(getwt = TRUE))
+
 })
-
-
 

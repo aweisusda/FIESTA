@@ -1,7 +1,3 @@
-library(FIESTA)
-library(testthat)
-library(usethis)
-library(devtools)
 
 ##The `datSumTreeDom` function aggregates tree-level data to plot or condition, including options for filtering tree data or extrapolating to plot acre by multiplying by `TPA`.
 
@@ -40,4 +36,8 @@ library(devtools)
     datBA_varlut <- treedomBA$tdomvarlut
     
     datVOL_varlut <- treedomVOL$tdomvarlut
+
+    expect_snapshot(datBA_varlut)
+    expect_snapshot(datVOL_varlut)
 })
+

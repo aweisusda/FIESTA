@@ -25,7 +25,6 @@ datSumTree(
   tsumvarnmlst = NULL,
   addseed = FALSE,
   seedonly = FALSE,
-  woodland = "Y",
   TPA = TRUE,
   tfun = sum,
   ACI = FALSE,
@@ -38,6 +37,7 @@ datSumTree(
   adjTPA = 1,
   NAto0 = FALSE,
   tround = 5,
+  checkNA = FALSE,
   returnDT = TRUE,
   savedata = FALSE,
   savedata_opts = NULL,
@@ -52,7 +52,7 @@ datSumTree(
 \item{seed}{Dataframe or comma-delimited file (*.csv). The seedling table.}
 
 \item{cond}{Dataframe or comma-delimited file (*.csv). Condition-level table
-to join the aggregated Ftree data to, if bycond=TRUE. This table also may be
+to join the aggregated tree data to, if bycond=TRUE. This table also may be
 used for condition proportion or strata variables used if adjcond or
 adjstrata = TRUE (See details below).  This table is optional.}
 
@@ -110,11 +110,6 @@ tdomvar must be 'SPCD' or 'SPGRPCD'.}
 \item{seedonly}{Logical. If TRUE, seedling counts only. Note: tdomvar
 must be 'SPCD' or 'SPGRPCD'.}
 
-\item{woodland}{String. If woodland = 'Y', include woodland tree species
-where measured. If woodland = 'N', only include timber species. See 
-FIESTA::ref_species$WOODLAND ='Y/N'. If woodland = 'only', only include
-woodland species.}
-
 \item{TPA}{Logical. If TRUE, tsumvarlst variable(s) are multiplied by the
 respective trees-per-acre variable (see details) to get per-acre
 measurements.}
@@ -131,12 +126,12 @@ include condition table.}
 prompted.  Use tfilter="NONE" if no filters.}
 
 \item{lbs2tons}{Logical. If TRUE, converts biomass or carbon variables from
-pounds to tons (1 pound = 0.0005 short tons).}
+pounds to tons. If metric=TRUE, converts to metric tons, else short tons.}
 
 \item{metric}{Logical. If TRUE, converts response to metric units based on
 FIESTA::ref_conversion, if any variable in tsumvarlst is in
-FIESTAutils::ref_units.  Note: if TPA, TPA is converted to trees per hectare
-(TPH: 1/ tpavar * 0.4046860).}
+FIESTAutils::ref_estvar.  Note: if TPA, TPA is converted to trees per hectare
+(TPH: 1 / (1/ tpavar * 0.4046860)).}
 
 \item{getadjplot}{Logical. If TRUE, adjustments are calculated for
 nonsampled conditions on plot.}
@@ -156,6 +151,9 @@ for estimate, adjTPA=4. The default is 1.}
 
 \item{tround}{Number. The number of digits to round to. If NULL, default=5.}
 
+\item{checkNA}{Logical. If TRUE, checks if NA values exist in necessary
+variables.}
+
 \item{returnDT}{Logical. If TRUE, returns data.table object(s). If FALSE,
 returns data.frame object(s).}
 
@@ -172,14 +170,9 @@ default = 'treesum'.}
 \item{gui}{Logical. If gui, user is prompted for parameters.}
 }
 \value{
-A list of the following items: 
-\item{treedat}{ Data frame. Plot or condition-level table with aggregated 
-tree attributes. } 
-\item{sumvars}{ String vector. Name(s) of the output aggregated tree 
-attributes. }
-\item{tunitlst}{ String list. Units of output, when available. }
-\item{tfilter}{ String list. Filter used. }
-\item{meta}{ Data frame. Associated metadata, when available. }
+A list of the following items: \item{treedat}{ Data frame. Plot or
+condition-level table with aggregated tree attributes. } \item{sumvars}{
+String vector. Name(s) of the output aggregated tree attributes. }
 
 If savedata=TRUE\cr - treedat will be saved to the outfolder. \cr - a text
 file of input parameters is saved to outfolder
