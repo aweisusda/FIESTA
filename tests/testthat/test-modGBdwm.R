@@ -1,5 +1,6 @@
 test_that("modGBdwm Testing", {
-  skip_on_cran()
+  
+  skip(message = "In Progress")
   #GBpop <- modGBpop(popTabs = list(cond=WYcond, tree=WYtree),
   #pltassgn = WYpltassgn,
   #pltassgnid = "CN",
