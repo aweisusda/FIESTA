@@ -1,8 +1,3 @@
-library(FIESTA)
-library(testthat)
-library(usethis)
-library(devtools)
-
 
 ##Pivot table summarizes and analyzes large quantities of data
 test_that("datPivot Testing", {
